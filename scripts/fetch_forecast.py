@@ -30,7 +30,11 @@ PROFILE_HOURS = list(range(3, 13))  # 03:00 to 12:00 local, for the slider
 LAPSE = 6.5 / 1000  # normal cooling, °C per metre
 
 # Score weights, out of 100. Keep in sync with the "How the score works" text.
+# "diff" is the strength of the warm layer above the valley (the inversion itself).
 WEIGHTS = {"diff": 30, "moist": 20, "wind": 15, "pressure": 15, "below": 10, "clear": 10}
+FULL_INVERSION = 5.0   # °C warmer than the valley floor for full marks
+MIN_INVERSION = 0.5    # °C: below this there is no lid to hold the cloud down
+NO_INVERSION_CAP = 20  # highest score allowed without an inversion
 
 
 # --------------------------------------------------------------------------- fetching
@@ -141,7 +145,9 @@ def cloud_layer(profile, valley, summit, rh_2m, grid_elev):
         return None
     sat = [p[2] >= 95 for p in pts]
     base = None
-    if rh_2m is not None and rh_2m >= 97 and grid_elev is not None:
+    # Fog at 2 m only counts as valley cloud if the model's ground is near the valley floor.
+    # In the fells the model grid can sit high on the hillside, where 2 m fog means the hill is in cloud.
+    if rh_2m is not None and rh_2m >= 97 and grid_elev is not None and grid_elev <= valley + 200:
         base = max(valley, grid_elev)
     for i, s in enumerate(sat):
         if s and base is None:
@@ -156,23 +162,29 @@ def cloud_layer(profile, valley, summit, rh_2m, grid_elev):
                 top = a[0] + (b[0] - a[0]) * (a[2] - 95) / max(1, a[2] - b[2])
             else:
                 top = a[0]
-            return (round(base), round(top)) if base < summit else None
+            if top <= base or base >= summit:
+                return None
+            return (round(base), round(top))
     if base is not None and base < summit:
         return (round(base), round(pts[-1][0]))
     return None
 
 
-def inversion_top(profile, valley, summit):
-    """Height of the warmest point between the valley and a little above the summit, if it is warmer than the valley."""
-    lo, hi = valley, summit + 400
-    best, best_t = None, interp(profile, valley)
-    z = lo
-    while z <= hi:
+def inversion(profile, valley, summit):
+    """The warm lid: the warmest point between the valley and a little above the summit.
+
+    Returns (height, strength). Strength is how much warmer the lid is than the valley floor, in °C.
+    Height is None when nothing above the valley is warmer than it, i.e. there is no inversion.
+    """
+    vt = interp(profile, valley)
+    best, best_t = None, vt
+    z = valley
+    while z <= summit + 400:
         t = interp(profile, z)
         if t > best_t + 0.3:
             best, best_t = z, t
         z += 25
-    return best
+    return best, max(0.0, best_t - vt)
 
 
 def freezing_level(profile):
@@ -197,9 +209,8 @@ def clamp01(v):
 # --------------------------------------------------------------------------- scoring
 
 def score_conditions(c, peak):
-    diff = c["st"] - c["vt"]
     f = {
-        "diff": clamp01((diff + 3) / 10),
+        "diff": clamp01(c["inv"] / FULL_INVERSION),
         "moist": clamp01((c["rh_valley"] - 70) / 25),
         "wind": clamp01(1 - (c["wind"] - 5) / 20),
         "pressure": clamp01((c["pressure"] - 1010) / 20),
@@ -207,6 +218,9 @@ def score_conditions(c, peak):
         "clear": clamp01(1 - c["high_cloud"] / 100),
     }
     total = sum(f[k] * WEIGHTS[k] for k in WEIGHTS)
+    if c["inv"] < MIN_INVERSION:
+        # No warm lid means no cloud sea, however good the other signals look.
+        total = min(total, NO_INVERSION_CAP)
     return max(3, min(95, round(total))), {k: round(v, 3) for k, v in f.items()}
 
 
@@ -221,8 +235,8 @@ def verdict(score, c, peak):
         return "Possible, though the signals are mixed."
     if c["wind"] > 25:
         return "Unlikely. Strong winds will mix the air."
-    if c["st"] <= c["vt"]:
-        return "Unlikely. The air cools normally with height."
+    if c["inv"] < MIN_INVERSION:
+        return "Unlikely. No warm layer above the valley to hold the cloud down."
     return "Unlikely this morning."
 
 
@@ -241,6 +255,7 @@ def conditions_at(resp, idx, peak):
     winds = [(float(h[f"geopotential_height_{lv}hPa"][idx]), float(h[f"wind_speed_{lv}hPa"][idx] or 0)) for lv in LEVELS
              if f"wind_speed_{lv}hPa" in h and h[f"geopotential_height_{lv}hPa"][idx] is not None]
     wind = interp([(z, w, 0) for z, w in winds], summit)
+    inv_top, inv = inversion(profile, valley, summit)
     c = {
         "st": round(interp(profile, summit), 1),
         "vt": round(interp(profile, valley), 1),
@@ -249,7 +264,8 @@ def conditions_at(resp, idx, peak):
         "pressure": round(h["pressure_msl"][idx] or 1013),
         "high_cloud": round(h["cloud_cover_high"][idx] or 0),
         "cloud": cloud_layer(profile, valley, summit, rh2, grid),
-        "inv_top": inversion_top(profile, valley, summit),
+        "inv_top": inv_top,
+        "inv": round(inv, 1),
         "fz": freezing_level(profile),
     }
     return c, profile
@@ -280,7 +296,7 @@ def process(peak, resp, generated):
             ch, prof = conditions_at(resp, j, peak)
             if ch is None:
                 continue
-            if hr >= sr_h and ch["cloud"] and ch["cloud"][1] < peak["elev"] and ch["st"] > ch["vt"]:
+            if hr >= sr_h and ch["cloud"] and ch["cloud"][1] < peak["elev"] and ch["inv"] >= MIN_INVERSION:
                 last_good = hr
             hours.append({
                 "t": f"{hr:02d}:00",
@@ -302,7 +318,7 @@ def process(peak, resp, generated):
             "verdict": verdict(score, c, peak), "window": window,
             "st": c["st"], "vt": c["vt"], "wind": c["wind"], "pressure": c["pressure"],
             "rh_valley": c["rh_valley"], "high_cloud": c["high_cloud"],
-            "cloud": c["cloud"], "inv_top": c["inv_top"], "fz": c["fz"], "factors": factors,
+            "cloud": c["cloud"], "inv_top": c["inv_top"], "inv": c["inv"], "fz": c["fz"], "factors": factors,
         }
         summary_days.append({k: day[k] for k in ("date", "sunrise", "score", "conf", "window", "st", "vt", "wind", "cloud")})
         detail_days.append(dict(day, hours=hours))
