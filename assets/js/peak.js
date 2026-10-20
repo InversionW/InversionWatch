@@ -144,7 +144,7 @@
   function renderFactors() {
     var d = day();
     var F = [
-      ['diff', 'Summit warmer than valley', 30, (Math.round(d.st - d.vt) > 0 ? '+' : Math.round(d.st - d.vt) < 0 ? '−' : '') + Math.abs(Math.round(d.st - d.vt)) + '°C at the summit; normally about 5°C colder'],
+      ['diff', 'Warm layer above the valley', 30, d.inv == null ? 'Summit ' + IW.temp(d.st) + ', valley ' + IW.temp(d.vt) : d.inv >= 0.5 ? 'Up to ' + d.inv.toFixed(1) + '°C warmer than the valley' + (d.inv_top ? ', around ' + d.inv_top + ' m' : '') : 'None: the air cools with height, so the score is capped at 20%'],
       ['moist', 'Moist valley air', 20, d.rh_valley + '% humidity in the valley'],
       ['wind', 'Light winds', 15, d.wind + ' mph at summit height'],
       ['pressure', 'High pressure', 15, d.pressure + ' hPa'],
