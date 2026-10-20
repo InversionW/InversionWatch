@@ -27,7 +27,6 @@ API = "https://api.open-meteo.com/v1/forecast"
 LEVELS = [1000, 975, 950, 925, 900, 850, 800, 700]  # hPa, roughly 100 m to 3 km
 DAYS = 6
 PROFILE_HOURS = list(range(3, 13))  # 03:00 to 12:00 local, for the slider
-BATCH = 8  # locations per request
 LAPSE = 6.5 / 1000  # normal cooling, °C per metre
 
 # Score weights, out of 100. Keep in sync with the "How the score works" text.
@@ -36,34 +35,43 @@ WEIGHTS = {"diff": 30, "moist": 20, "wind": 15, "pressure": 15, "below": 10, "cl
 
 # --------------------------------------------------------------------------- fetching
 
-def hourly_fields():
+WIND_LEVELS = [925, 900, 850, 800]  # roughly 750 m to 2 km: summit heights
+
+
+def hourly_fields(demo=False):
     f = ["temperature_2m", "relative_humidity_2m", "pressure_msl", "cloud_cover_low", "cloud_cover_high"]
     for lv in LEVELS:
-        f += [f"temperature_{lv}hPa", f"relative_humidity_{lv}hPa", f"geopotential_height_{lv}hPa", f"wind_speed_{lv}hPa"]
+        f += [f"temperature_{lv}hPa", f"relative_humidity_{lv}hPa", f"geopotential_height_{lv}hPa"]
+        if demo or lv in WIND_LEVELS:
+            f.append(f"wind_speed_{lv}hPa")
     return f
 
 
-def fetch_batch(peaks):
+USER_AGENT = "InversionWatch/1.0 (cloud inversion forecasts for UK peaks; GitHub Actions)"
+
+
+def fetch_one(peak, attempts=5):
+    """One peak per request: small, quick responses that are less likely to time out."""
     params = {
-        "latitude": ",".join(f"{p['lat']:.4f}" for p in peaks),
-        "longitude": ",".join(f"{p['lon']:.4f}" for p in peaks),
+        "latitude": f"{peak['lat']:.4f}",
+        "longitude": f"{peak['lon']:.4f}",
         "hourly": ",".join(hourly_fields()),
         "daily": "sunrise",
         "timezone": "Europe/London",
         "wind_speed_unit": "mph",
         "forecast_days": DAYS,
     }
-    url = API + "?" + urllib.parse.urlencode(params)
-    for attempt in range(4):
+    req = urllib.request.Request(API + "?" + urllib.parse.urlencode(params), headers={"User-Agent": USER_AGENT})
+    for attempt in range(attempts):
         try:
-            with urllib.request.urlopen(url, timeout=60) as r:
-                body = json.load(r)
-            return body if isinstance(body, list) else [body]
-        except Exception as e:  # network blip or rate limit: back off and retry
-            if attempt == 3:
+            with urllib.request.urlopen(req, timeout=45) as r:
+                return json.load(r)
+        except Exception as e:  # network blip, slow server or rate limit: back off and retry
+            if attempt == attempts - 1:
                 raise
-            print(f"  retry after error: {e}", file=sys.stderr)
-            time.sleep(5 * (attempt + 1))
+            wait = 10 * (attempt + 1)
+            print(f"  {peak['name']}: retry in {wait}s after error: {e}", flush=True)
+            time.sleep(wait)
 
 
 # --------------------------------------------------------------------------- demo data
@@ -71,7 +79,7 @@ def fetch_batch(peaks):
 def demo_response(peak, start):
     """A fake Open-Meteo response with a plausible inversion pattern, for previews."""
     rnd = random.Random(peak["id"] + start.isoformat())
-    hours, h = [], {k: [] for k in hourly_fields()}
+    hours, h = [], {k: [] for k in hourly_fields(demo=True)}
     strength = [rnd.uniform(3, 9), rnd.uniform(1, 7), rnd.uniform(-2, 5), rnd.uniform(-6, 1), rnd.uniform(-3, 4), rnd.uniform(0, 7)]
     sunrise = []
     for d in range(DAYS):
@@ -230,7 +238,8 @@ def conditions_at(resp, idx, peak):
     valley, summit = peak["valley_m"], peak["elev"]
     rh2 = h["relative_humidity_2m"][idx]
     grid = resp.get("elevation")
-    winds = [(float(h[f"geopotential_height_{lv}hPa"][idx]), float(h[f"wind_speed_{lv}hPa"][idx] or 0)) for lv in LEVELS if h[f"geopotential_height_{lv}hPa"][idx] is not None]
+    winds = [(float(h[f"geopotential_height_{lv}hPa"][idx]), float(h[f"wind_speed_{lv}hPa"][idx] or 0)) for lv in LEVELS
+             if f"wind_speed_{lv}hPa" in h and h[f"geopotential_height_{lv}hPa"][idx] is not None]
     wind = interp([(z, w, 0) for z, w in winds], summit)
     c = {
         "st": round(interp(profile, summit), 1),
@@ -314,28 +323,46 @@ def main():
     generated = now.strftime("%Y-%m-%dT%H:%M:%SZ")
     today = (now + dt.timedelta(hours=1)).date()
 
-    responses = []
-    if args.demo:
-        responses = [demo_response(p, today) for p in peaks]
-    else:
-        for i in range(0, len(peaks), BATCH):
-            batch = peaks[i:i + BATCH]
-            print(f"Fetching {', '.join(p['name'] for p in batch)}")
-            responses += fetch_batch(batch)
-            time.sleep(1)
+    # Previous output, reused for any peak that can't be fetched this time.
+    old = {}
+    try:
+        with open(os.path.join(DATA, "forecast.json"), encoding="utf-8") as f:
+            prev = json.load(f)
+        if not prev.get("demo"):
+            old = {p["id"]: p for p in prev.get("peaks", [])}
+    except (OSError, ValueError):
+        pass
 
     os.makedirs(os.path.join(DATA, "peaks"), exist_ok=True)
-    out = []
-    for peak, resp in zip(peaks, responses):
-        days, detail = process(peak, resp, generated)
+    out, failed = [], []
+    for peak in peaks:
+        try:
+            if args.demo:
+                resp = demo_response(peak, today)
+            else:
+                print(f"Fetching {peak['name']}", flush=True)
+                resp = fetch_one(peak)
+                time.sleep(0.5)
+            days, detail = process(peak, resp, generated)
+        except Exception as e:
+            print(f"  {peak['name']}: giving up this run ({e})", flush=True)
+            failed.append(peak["name"])
+            if peak["id"] in old:
+                out.append(old[peak["id"]])  # keep the last good forecast and its detail file
+            continue
         out.append({k: peak[k] for k in ("id", "name", "area", "lat", "lon", "elev", "valley_m", "valley_name")} | {"days": days})
         with open(os.path.join(DATA, "peaks", f"{peak['id']}.json"), "w", encoding="utf-8") as f:
             json.dump(detail, f, ensure_ascii=False, separators=(",", ":"))
 
+    if len(failed) > len(peaks) // 2:
+        print(f"Too many peaks failed ({len(failed)} of {len(peaks)}); leaving the published forecast unchanged.", flush=True)
+        sys.exit(1)
+
     summary = {"generated_at": generated, "demo": args.demo, "source": "Open-Meteo", "areas": cfg["areas"], "peaks": out}
     with open(os.path.join(DATA, "forecast.json"), "w", encoding="utf-8") as f:
         json.dump(summary, f, ensure_ascii=False, separators=(",", ":"))
-    print(f"Wrote {len(out)} peaks at {generated}{' (demo)' if args.demo else ''}")
+    note = f"; kept previous forecast for {', '.join(failed)}" if failed else ""
+    print(f"Wrote {len(out)} peaks at {generated}{' (demo)' if args.demo else ''}{note}", flush=True)
 
 
 if __name__ == "__main__":
