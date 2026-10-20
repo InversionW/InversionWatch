@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en-GB" data-repo="https://github.com/YOUR-USERNAME/inversion-watch">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inversion Watch – cloud inversion forecasts for UK peaks</title>
+<meta name="description" content="Six-day cloud inversion forecasts for UK mountains: which peaks will rise above the cloud at dawn, and when to set off.">
+<meta property="og:title" content="Inversion Watch – cloud inversion forecasts for UK peaks">
+<meta property="og:description" content="Which UK peaks will rise above the cloud at dawn, up to six days ahead.">
+<meta property="og:image" content="assets/img/og-image.jpg">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#1E4630">
+<link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header id="site-header"></header>
+<div id="demo-banner" class="banner-demo" hidden>Showing sample data. Live forecasts appear after the first scheduled update.</div>
+
+<section class="hero" style="background-image: url('assets/img/hero-cloud-sea.jpg')">
+<div class="wrap stack" style="--gap: 12px">
+<h1>Where are the cloud inversions this week?</h1>
+<p>The best chance of standing above a sea of cloud at dawn, across the UK's mountain areas, up to six days ahead.</p>
+</div>
+<span class="credit">Photo via <a href="https://www.pexels.com/">Pexels</a></span>
+</section>
+
+<main id="main" class="wrap stack" style="--gap: 28px; padding-top: 28px">
+<div id="stale" class="alert" role="alert" hidden></div>
+
+<section class="card" style="padding: 0; overflow: hidden" aria-labelledby="heat-h">
+<div class="row" style="justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border)">
+<h2 id="heat-h">6-day inversion heatmap</h2>
+<span class="muted small">Each cell is the best peak's chance at dawn. Select one to see its peaks.</span>
+</div>
+<div class="heatmap" id="heatmap"><p class="muted" style="padding: 20px">Loading the forecast…</p></div>
+<div class="row" style="justify-content: space-between; padding: 12px 20px">
+<div class="legend">
+<span><i class="heat-0"></i>0–20%</span><span><i class="heat-1"></i>20–40%</span><span><i class="heat-2"></i>40–60%</span><span><i class="heat-3"></i>60–80%</span><span><i class="heat-4"></i>80%+</span>
+</div>
+<span class="muted small" id="updated"></span>
+</div>
+</section>
+
+<section class="grid-2">
+<figure class="card stack" style="margin: 0; --gap: 12px">
+<figcaption class="row" style="justify-content: space-between"><span class="eyebrow" id="map-title">Map</span><span class="muted small">Colour shows the best chance in each area</span></figcaption>
+<div id="map" role="img" aria-label="Map of UK peaks coloured by inversion chance"></div>
+</figure>
+<div class="card stack" style="--gap: 10px">
+<span class="eyebrow" id="list-day"></span>
+<h2 id="list-title">Best peaks</h2>
+<p class="muted" id="list-note"></p>
+<ol class="peak-list" id="peak-list"></ol>
+</div>
+</section>
+
+<section id="saved" class="card stack" style="--gap: 10px" hidden aria-labelledby="saved-h">
+<h2 id="saved-h">Your saved peaks</h2>
+<ol class="peak-list" id="saved-list"></ol>
+</section>
+
+<section class="stack" style="--gap: 20px; padding-top: 12px" aria-labelledby="what-h">
+<div class="stack" style="--gap: 4px">
+<h2 id="what-h" style="font-size: 32px">New to cloud inversions?</h2>
+<p class="muted">What you're looking for, and how to read the forecast.</p>
+</div>
+<div class="grid-2" style="align-items: stretch">
+<figure class="card" style="margin: 0; padding: 0; overflow: hidden; display: flex; flex-direction: column">
+<img src="assets/img/explainer-golden.jpg" alt="Golden morning light on a sea of cloud below a dark rocky ridge" style="flex: 1; width: 100%; min-height: 340px; object-fit: cover" loading="lazy">
+<figcaption class="muted small" style="padding: 12px 16px">A cloud sea at sunrise. Photo via <a href="https://www.pexels.com/">Pexels</a>.</figcaption>
+</figure>
+<ol style="list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: 16px">
+<li class="card stack" style="--gap: 8px; padding: 18px">
+<svg viewBox="0 0 200 70" role="img" aria-label="Diagram: warm air sits above cold cloud in the valley, with a peak rising through" style="width: 100%; height: auto">
+<rect width="200" height="70" fill="var(--accent-soft)"/><path d="M30 70 L80 22 L100 8 L120 22 L170 70 Z" fill="#4D6B57"/><rect y="44" width="200" height="26" fill="#F7F8F4" opacity="0.96"/><line x1="0" y1="44" x2="200" y2="44" stroke="#C2551A" stroke-width="2" stroke-dasharray="4 3"/>
+<text x="6" y="14" font-size="10" font-weight="700" fill="var(--text)" font-family="Source Sans 3, sans-serif">Warm air</text><text x="6" y="62" font-size="10" font-weight="700" fill="#2B3A4D" font-family="Source Sans 3, sans-serif">Cold, damp air</text></svg>
+<h3 style="font-family: var(--body); font-size: 17px">What it is</h3>
+<p class="muted">Overnight, cold damp air settles in the valleys and warmer air above acts as a lid. Climb above the lid and you look down on a sea of cloud.</p>
+</li>
+<li class="card stack" style="--gap: 8px; padding: 18px">
+<span class="big-num" style="font-size: 36px">78%</span>
+<h3 style="font-family: var(--body); font-size: 17px">What the percentage means</h3>
+<p class="muted">A score from six weather signals is not a guarantee. The peak also needs to stand well above the cloud top.</p>
+<a href="about.html#how" style="font-weight: 600; min-height: 44px; display: flex; align-items: center; margin-top: auto">How the score works</a>
+</li>
+<li class="card stack" style="--gap: 8px; padding: 18px">
+<span aria-hidden="true" class="row" style="--gap: 4px"><i style="width: 22px; height: 22px; background: var(--brand)"></i><i style="width: 22px; height: 22px; background: var(--brand)"></i><i style="width: 22px; height: 22px; background: var(--brand)"></i><i style="width: 22px; height: 22px; background: var(--tint); border: 1px dashed var(--brand)"></i><i style="width: 22px; height: 22px; background: var(--tint); border: 1px dashed var(--brand)"></i><i style="width: 22px; height: 22px; background: var(--tint); border: 1px dashed var(--brand)"></i></span>
+<h3 style="font-family: var(--body); font-size: 17px">Days 1–3 vs 4–6</h3>
+<p class="muted">MWIS covers the next three days, so those are the most reliable. Treat days four to six as a heads-up and check again nearer the time.</p>
+</li>
+<li class="card stack" style="--gap: 8px; padding: 18px">
+<span style="color: var(--accent)"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17v.5"/></svg></span>
+<h3 style="font-family: var(--body); font-size: 17px">Before you go</h3>
+<p class="muted">You'll walk in the dark and the cold. Read the full <a href="https://www.mwis.org.uk/">MWIS forecast</a>, take a headtorch and warm layers, and know your way down.</p>
+</li>
+</ol>
+</div>
+</section>
+</main>
+<footer id="site-footer"></footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/common.js"></script>
+<script src="assets/js/overview.js"></script>
+</body>
+</html>

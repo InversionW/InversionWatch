@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en-GB" data-repo="https://github.com/YOUR-USERNAME/inversion-watch">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Peak forecast – Inversion Watch</title>
+<meta name="description" content="Cloud inversion forecast for a UK peak: six-day outlook, atmospheric profile and an estimated start time.">
+<meta property="og:title" content="Cloud inversion forecast – Inversion Watch">
+<meta property="og:description" content="Will this peak rise above the cloud at dawn? Six-day outlook.">
+<meta property="og:image" content="assets/img/og-image.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#1E4630">
+<link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header id="site-header"></header>
+<div id="demo-banner" class="banner-demo" hidden>Showing sample data. Live forecasts appear after the first scheduled update.</div>
+
+<div style="background: var(--surface); border-bottom: 1px solid var(--border)">
+<div class="wrap row" style="justify-content: space-between; align-items: flex-end; padding-top: 20px; padding-bottom: 20px; --gap: 16px 32px">
+<div class="stack" style="--gap: 4px">
+<span class="muted small" id="area-line"></span>
+<h1 id="peak-name">Loading…</h1>
+</div>
+<div class="row" style="--gap: 8px">
+<button class="btn" type="button" id="fav-btn" aria-pressed="false"></button>
+<button class="btn" type="button" id="share-btn"></button>
+<a class="btn" id="maps-link" href="#" target="_blank" rel="noopener">360° view in Google Maps</a>
+</div>
+</div>
+</div>
+
+<main id="main" class="wrap stack" style="--gap: 24px; padding-top: 24px">
+<section class="card stack" style="--gap: 18px" aria-label="Summary">
+<div class="chips" role="group" aria-label="Choose a day" id="day-chips"></div>
+<div id="stale" class="alert" role="alert" hidden></div>
+<div class="row" style="--gap: 16px 32px">
+<span class="verdict-pill" id="pill"></span>
+<div class="stack" style="--gap: 2px; flex: 1 1 320px; min-width: 0">
+<span><span class="big-num" id="score"></span> <span class="muted" style="font-weight: 600" id="score-day"></span></span>
+<p style="font-size: 18px; font-weight: 600" id="verdict"></p>
+</div>
+<dl class="facts">
+<div><dt>Est. leave by</dt><dd id="sum-leave"></dd></div>
+<div><dt>Summit vs cloud</dt><dd id="sum-margin"></dd></div>
+<div><dt>Feels like at the top</dt><dd id="sum-chill"></dd></div>
+</dl>
+</div>
+</section>
+
+<div class="tabs" role="tablist" aria-label="Peak sections">
+<button class="tab" role="tab" type="button" id="tab-forecast" aria-controls="panel-forecast" aria-selected="true">Forecast</button>
+<button class="tab" role="tab" type="button" id="tab-plan" aria-controls="panel-plan" aria-selected="false">Plan your trip</button>
+</div>
+
+<div id="panel-forecast" role="tabpanel" aria-labelledby="tab-forecast" class="stack" style="--gap: 24px">
+<section class="card" style="padding: 0; overflow: hidden" aria-labelledby="table-h">
+<div class="row" style="justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border)">
+<h2 id="table-h">6-day dawn forecast</h2><span class="muted small" id="updated"></span>
+</div>
+<div class="daytable" id="daytable"></div>
+</section>
+
+<section class="grid-2">
+<figure class="card profile stack" style="margin: 0; --gap: 14px">
+<figcaption class="stack" style="--gap: 6px">
+<span class="eyebrow">Atmospheric profile</span>
+<span style="font-size: 18px; font-weight: 600" id="profile-head"></span>
+</figcaption>
+<div class="stack" style="--gap: 4px">
+<div class="row" style="justify-content: space-between"><label for="hour" style="font-weight: 700; font-size: 14px">Time of day <span class="muted" style="font-weight: 400" id="sunrise-note"></span></label><span style="font-family: var(--display); font-weight: 700; font-size: 26px" id="hour-out"></span></div>
+<input type="range" id="hour" min="0" max="0" step="1" value="0">
+</div>
+<div id="profile-svg"></div>
+<dl class="facts" style="padding: 12px 0; border-top: 1px solid var(--border-soft); border-bottom: 1px solid var(--border-soft); --gap: 10px 24px">
+<div><dt>Summit</dt><dd id="pf-st"></dd></div><div><dt>Valley</dt><dd id="pf-vt"></dd></div><div><dt>Cloud</dt><dd id="pf-cloud"></dd></div><div><dt>Freezing level</dt><dd id="pf-fz"></dd></div>
+</dl>
+<div class="stack" style="--gap: 10px">
+<span class="eyebrow">Key</span>
+<ul class="key">
+<li><svg width="28" height="14" aria-hidden="true"><line x1="0" y1="7" x2="28" y2="7" stroke="var(--accent)" stroke-width="3.5"/></svg><span><b>Temperature.</b> <span class="muted">Leaning left as it rises means cooling with height, as normal.</span></span></li>
+<li><svg width="28" height="14" aria-hidden="true"><line x1="0" y1="7" x2="28" y2="7" stroke="var(--dew)" stroke-width="2.5"/></svg><span><b>Dew point.</b> <span class="muted">Where it touches the temperature line the air is saturated, so there's cloud or fog.</span></span></li>
+<li><svg width="28" height="14" aria-hidden="true"><line x1="0" y1="7" x2="28" y2="7" stroke="var(--normal)" stroke-width="1.8" stroke-dasharray="7 5"/></svg><span><b>Normal cooling.</b> <span class="muted">About 6.5°C per 1,000 m, for comparison.</span></span></li>
+<li><i aria-hidden="true" style="width: 28px; height: 14px; margin-top: 3px; background: var(--accent); opacity: 0.18; display: block"></i><span><b>Inversion layer.</b> <span class="muted">The line leans right: it gets warmer as you climb, which traps cloud below.</span></span></li>
+<li><i aria-hidden="true" style="width: 28px; height: 14px; margin-top: 3px; background: var(--cloud); display: block"></i><span><b>Cloud.</b> <span class="muted">Below the summit line means you'd stand above it.</span></span></li>
+<li><svg width="28" height="14" aria-hidden="true"><line x1="0" y1="7" x2="28" y2="7" stroke="var(--freeze)" stroke-width="2" stroke-dasharray="2 4"/></svg><span><b>Freezing level.</b> <span class="muted">Where the air drops to 0°C. Ice and rime above it.</span></span></li>
+</ul>
+</div>
+</figure>
+
+<section class="card stack" style="--gap: 12px" aria-labelledby="why-h">
+<h2 id="why-h">How the score is worked out</h2>
+<p class="muted small">Six signals, each scored out of its weight. <a href="about.html#how">More about the method</a>.</p>
+<div id="factors"></div>
+<div class="stack" style="--gap: 8px; padding-top: 12px">
+<h3>Check these too</h3>
+<ul style="margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px" id="sources"></ul>
+</div>
+</section>
+</section>
+</div>
+
+<div id="panel-plan" role="tabpanel" aria-labelledby="tab-plan" class="grid-2" hidden>
+<section class="card stack" style="--gap: 14px" aria-labelledby="plan-h">
+<h2 id="plan-h">Plan your start</h2>
+<p class="muted small">Enter your route to the top. The defaults are a rough guess for a typical route from <span id="valley-name"></span>.</p>
+<div class="row" style="--gap: 12px 16px; align-items: flex-end">
+<label class="field" style="flex: 1 1 140px">Distance to summit (km)<input type="number" id="dist" min="0.5" max="30" step="0.1"></label>
+<label class="field" style="flex: 1 1 140px">Height to climb (m)<input type="number" id="ascent" min="50" max="1500" step="10"></label>
+</div>
+<div class="stack" style="--gap: 4px" role="group" aria-label="Your pace">
+<span style="font-size: 14px; font-weight: 600">Your pace</span>
+<div class="row" style="--gap: 6px" id="paces"></div>
+</div>
+<div id="plan-out"></div>
+<div class="safety stack" role="note" style="--gap: 6px">
+<b class="row" style="--gap: 8px; color: var(--text)"><span style="color: var(--accent)" id="warn-icon"></span>Before you go</b>
+<ul>
+<li>Only walk in the dark if you have the experience and kit for it: map, compass, headtorch with spare batteries, warm layers, food and water.</li>
+<li>Tell someone your route and when you expect to be back.</li>
+<li>Read the full <a id="mwis-link" href="https://www.mwis.org.uk/">MWIS forecast</a> on the day, and turn back if conditions are not what you expected.</li>
+<li>In an emergency, call 999, ask for the Police, then Mountain Rescue.</li>
+</ul>
+<a href="https://www.adventuresmart.uk/" style="font-weight: 600; min-height: 44px; display: flex; align-items: center">More advice from AdventureSmart UK</a>
+</div>
+</section>
+
+<div class="stack" style="--gap: 24px">
+<section class="card stack" style="--gap: 14px" aria-labelledby="cond-h">
+<div class="stack" style="--gap: 2px"><h2 id="cond-h">Summit conditions</h2><span class="muted small" id="cond-day"></span></div>
+<dl class="facts" style="--gap: 12px 28px">
+<div><dt>Feels like</dt><dd id="c-chill"></dd></div><div><dt>Summit wind</dt><dd id="c-wind"></dd></div><div><dt>Freezing level</dt><dd id="c-fz"></dd></div><div><dt>Ice on top</dt><dd id="c-ice"></dd></div>
+</dl>
+</section>
+<figure class="card row" style="margin: 0; --gap: 24px">
+<div id="compass"></div>
+<figcaption class="stack" style="--gap: 6px; flex: 1 1 200px">
+<span class="eyebrow">Sunrise direction</span>
+<span style="font-family: var(--display); font-weight: 700; font-size: 36px; line-height: 1" id="sun-dir"></span>
+<span id="sun-text"></span>
+</figcaption>
+</figure>
+</div>
+</div>
+</main>
+<footer id="site-footer"></footer>
+<script src="assets/js/common.js"></script>
+<script src="assets/js/peak.js"></script>
+</body>
+</html>

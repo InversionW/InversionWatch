@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en-GB" data-repo="https://github.com/YOUR-USERNAME/inversion-watch">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>About – Inversion Watch</title>
+<meta name="description" content="How Inversion Watch forecasts cloud inversions, and where its data comes from.">
+<meta property="og:title" content="About – Inversion Watch">
+<meta property="og:image" content="assets/img/og-image.jpg">
+<meta name="theme-color" content="#1E4630">
+<link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header id="site-header"></header>
+<main id="main" class="wrap stack" style="--gap: 56px; padding-top: 48px; max-width: 1100px">
+<section class="grid-2" style="align-items: center" aria-labelledby="story-h">
+<div class="stack" style="--gap: 16px">
+<span class="eyebrow" style="color: var(--accent)">About Inversion Watch</span>
+<h1 id="story-h">For those that want to stand above the clouds</h1>
+<p>A cloud inversion is that rare morning when the valleys fill with cloud and the summits rise out of it into sunshine.</p>
+<p>Inversions are easy to miss unless you know which morning to go, which peak to climb and what time to set off. Inversion Watch is a personal project by Mo that tries to answer all three, so you don't have to.</p>
+</div>
+<figure class="stack" style="margin: 0; --gap: 8px">
+<img src="assets/img/steel-fell-inversion.jpg" alt="A walker on a frosty ridge above a sea of valley cloud, with sunlit fells beyond" style="width: 100%; height: 480px; object-fit: cover; border-radius: 6px" loading="lazy">
+<figcaption class="muted small">North ridge, Steel Fell. Photo: <a href="https://www.geograph.org.uk/profile/37389">Karl and Ali</a>, Geograph, <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC BY-SA 2.0</a></figcaption>
+</figure>
+</section>
+
+<section id="how" class="stack" style="--gap: 20px" aria-labelledby="how-h">
+<h2 id="how-h" style="font-size: 34px">How the score works</h2>
+<p class="muted" style="max-width: 760px">Several times a day the site collects forecast temperature, humidity and wind at different heights above every peak from Open-Meteo, then scores the dawn conditions on six signals:</p>
+<div class="card" style="padding: 0 20px">
+<table style="width: 100%; border-collapse: collapse">
+<thead><tr><th style="text-align: left; padding: 12px 0">Signal</th><th style="padding: 12px 8px">Weight</th><th style="text-align: left; padding: 12px 0">Why it matters</th></tr></thead>
+<tbody>
+<tr style="border-top: 1px solid var(--border-soft)"><td style="padding: 10px 0"><b>Summit warmer than valley</b></td><td style="text-align: center">30</td><td class="muted">The inversion itself. Normally the summit is about 6.5°C colder for every 1,000 m.</td></tr>
+<tr style="border-top: 1px solid var(--border-soft)"><td style="padding: 10px 0"><b>Moist valley air</b></td><td style="text-align: center">20</td><td class="muted">Without moisture there's no cloud to look down on.</td></tr>
+<tr style="border-top: 1px solid var(--border-soft)"><td style="padding: 10px 0"><b>Light winds</b></td><td style="text-align: center">15</td><td class="muted">Wind mixes the layers and breaks the inversion up.</td></tr>
+<tr style="border-top: 1px solid var(--border-soft)"><td style="padding: 10px 0"><b>High pressure</b></td><td style="text-align: center">15</td><td class="muted">Sinking air puts a lid on the cloud.</td></tr>
+<tr style="border-top: 1px solid var(--border-soft)"><td style="padding: 10px 0"><b>Cloud top below summit</b></td><td style="text-align: center">10</td><td class="muted">Otherwise you're in the cloud, not above it.</td></tr>
+<tr style="border-top: 1px solid var(--border-soft)"><td style="padding: 10px 0"><b>Clear sky above</b></td><td style="text-align: center">10</td><td class="muted">For the view and the light.</td></tr>
+</tbody></table>
+</div>
+<p class="muted" style="max-width: 760px">The weights are a starting point and will be tuned against real sightings. Forecast models smooth out valleys, so the strength of a cold valley pool can be underestimated. Treat the score as a guide to which mornings are worth a closer look, not a promise.</p>
+</section>
+
+<section id="credits" class="card row" style="justify-content: space-between; --gap: 12px 24px" aria-labelledby="credits-h">
+<div class="stack" style="--gap: 4px"><h2 id="credits-h">Data and photo credits</h2><p class="muted">Inversion Watch is built on other people's generous work: weather data, maps, photos and fonts.</p></div>
+<a class="btn" href="credits.html">See all credits</a>
+</section>
+
+<section class="grid-2">
+<div class="card stack" style="--gap: 10px"><h2>Spotted something wrong?</h2><p class="muted">Or saw an inversion the forecast missed? Reports help make the score more accurate.</p><a class="btn primary" style="align-self: flex-start" id="issues-link" href="#">Report a problem</a></div>
+<div class="card stack" style="--gap: 10px"><h2>Open source</h2><p class="muted">The code is free to read and reuse under the MIT licence. See also the <a href="privacy.html">privacy notice</a> and <a href="terms.html">terms of use</a>.</p><a class="btn" style="align-self: flex-start" id="repo-link" href="#">View the code on GitHub</a></div>
+</section>
+</main>
+<script>document.getElementById('issues-link').href = (document.documentElement.getAttribute('data-repo')) + '/issues'; document.getElementById('repo-link').href = document.documentElement.getAttribute('data-repo');</script>
+<footer id="site-footer"></footer>
+<script src="assets/js/common.js"></script>
+<script>IW.chrome('about');</script>
+</body>
+</html>
