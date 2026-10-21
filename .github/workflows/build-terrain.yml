@@ -25,11 +25,15 @@ jobs:
         run: pip install numpy rasterio
       - name: Work out the skyline from every summit
         run: python scripts/build_terrain.py
+      - name: Find a 360° photo on each summit
+        run: python scripts/find_panos.py
+        env:
+          MAPILLARY_TOKEN: ${{ secrets.MAPILLARY_TOKEN }}
       - name: Commit skylines
         run: |
           git config user.name "inversion-watch-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/terrain
+          git add data/terrain data/panos.json 2>/dev/null || git add data/terrain
           if git diff --cached --quiet; then
             echo "No changes"
             exit 0
