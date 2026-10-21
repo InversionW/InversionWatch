@@ -117,13 +117,28 @@
 <div><dt>View</dt><dd id="sky-open"></dd><span class="muted small" id="sky-open-note"></span></div>
 <div><dt>Higher hills in view</dt><dd id="sky-higher"></dd><span class="muted small" id="sky-higher-note"></span></div>
 </dl>
-<div class="pano" id="pano" tabindex="0" aria-label="360 degree skyline from the summit. Scroll sideways to look around."></div>
+<div class="stack" style="--gap: 4px">
+<div class="row" style="justify-content: space-between; --gap: 8px 16px">
+<label for="sky-range" style="font-weight: 700; font-size: 14px">Time of day <span class="muted" style="font-weight: 400" id="sky-range-ends"></span></label>
+<div class="row" style="--gap: 12px">
+<div class="row face" role="group" aria-label="Which way to face" style="--gap: 4px"><button type="button" class="btn" id="face-S">Face south</button><button type="button" class="btn" id="face-N">Face north</button><button type="button" class="btn" id="face-sun">Find the sun</button></div>
+<span style="font-family: var(--display); font-weight: 700; font-size: 26px; min-width: 64px; text-align: right" id="sky-time"></span>
+</div>
+</div>
+<input type="range" id="sky-range" min="0" max="0" step="1" value="0" class="sky-range">
+<p class="small" style="margin: 2px 0 0; font-weight: 600" id="sky-now" aria-live="polite"></p>
+</div>
+<div class="photo360" id="photo360" hidden>
+<div id="photo360-view" class="photo360-view" role="img" aria-label="360 degree photo from the summit. Drag to look around."></div>
+<p class="muted small photo-credit" id="photo-credit"></p>
+</div>
+<div class="pano" id="pano" tabindex="0" aria-label="Sun path from the summit. Scroll sideways to look around."></div>
 <ul class="key">
-<li><i aria-hidden="true" style="width: 28px; height: 14px; margin-top: 3px; background: var(--brand); display: block"></i><span><b>Skyline.</b> <span class="muted">The hills all the way round, worked out from terrain data. Heights are stretched so you can see the shape.</span></span></li>
-<li><i aria-hidden="true" style="width: 28px; height: 14px; margin-top: 3px; background: #FFFFFF; border: 1px solid var(--border); display: block"></i><span><b>Cloud sea.</b> <span class="muted">The forecast cloud top for the time on the profile slider. Hills that poke through it are drawn on top.</span></span></li>
-<li><svg width="28" height="14" aria-hidden="true"><circle cx="14" cy="7" r="6" fill="var(--accent)"/></svg><span><b>First sun.</b> <span class="muted">Where and when the sun first clears the skyline from the summit.</span></span></li>
+<li><svg width="28" height="14" aria-hidden="true"><circle cx="14" cy="7" r="6" fill="var(--accent)"/></svg><span><b>The sun.</b> <span class="muted">Where it is at the time on the slider. The dotted line is its path from first sun on the summit to midday, at its true height.</span></span></li>
+<li><svg width="28" height="14" aria-hidden="true"><line x1="14" y1="1" x2="14" y2="13" stroke="var(--text)" stroke-width="2"/></svg><span><b>Hill names.</b> <span class="muted">Named tops on the skyline, placed at their real direction and height.</span></span></li>
+<li id="key-eye"><svg width="28" height="14" aria-hidden="true"><line x1="0" y1="7" x2="28" y2="7" stroke="var(--muted)" stroke-dasharray="3 3" stroke-width="2"/></svg><span><b>Eye level.</b> <span class="muted">Anything below this line is lower than you.</span></span></li>
 </ul>
-<p class="muted small" style="margin: 0">Terrain from the Copernicus DEM (about 90 m detail), hill names from OpenStreetMap. Small tops and crags close to the summit may be missed.</p>
+<p class="muted small" style="margin: 0" id="sky-source">First sun, the view and the higher hills are worked out from the Copernicus DEM (about 90 m detail), with hill names from OpenStreetMap. Small tops and crags close to the summit may be missed.</p>
 </figure>
 </div>
 
@@ -171,6 +186,7 @@
 </div>
 </main>
 <footer id="site-footer"></footer>
+<script src="assets/js/config.js"></script>
 <script src="assets/js/common.js"></script>
 <script src="assets/js/peak.js"></script>
 </body>

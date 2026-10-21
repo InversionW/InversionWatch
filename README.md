@@ -27,9 +27,10 @@ Six-day cloud inversion forecasts for UK peaks. A static site hosted on GitHub P
 2. **Let the Action push:** Settings › Actions › General › Workflow permissions › *Read and write permissions*.
 3. **Run it once:** Actions › *Update forecast* › *Run workflow*. Until it runs, the site shows sample data with a banner.
 4. **Build the summit skylines once:** Actions › *Build summit skylines* › *Run workflow*. Run it again whenever you add peaks. Until it runs, the "View from the summit" card is hidden.
-5. **Map key:** get a free key from [Thunderforest](https://www.thunderforest.com/), paste it into `assets/js/config.js`, and restrict it to your site's address in your Thunderforest account. Without a key the map falls back to the standard OpenStreetMap style.
-6. **Fill in your details:** replace `YOUR-USERNAME` in the `data-repo` attribute at the top of each `.html` file, and `[YOUR CONTACT EMAIL]` in `privacy.html` and `terms.html`.
-7. **Custom domain (optional):** add it under Settings › Pages, then delete the `<script>` line marked in `404.html`.
+5. **360° summit photos (optional):** make a free account at [Mapillary](https://www.mapillary.com/), go to the [developer dashboard](https://www.mapillary.com/dashboard/developers), register an application and copy its **client token** (it starts `MLY|`). Paste it into `mapillaryToken` in `assets/js/config.js`, then run *Build summit skylines* again so it finds a photo for each peak. Peaks without one show a sun-path chart instead.
+6. **Map key:** get a free key from [Thunderforest](https://www.thunderforest.com/), paste it into `assets/js/config.js`, and restrict it to your site's address in your Thunderforest account. Without a key the map falls back to the standard OpenStreetMap style.
+7. **Fill in your details:** replace `YOUR-USERNAME` in the `data-repo` attribute at the top of each `.html` file, and `[YOUR CONTACT EMAIL]` in `privacy.html` and `terms.html`.
+8. **Custom domain (optional):** add it under Settings › Pages, then delete the `<script>` line marked in `404.html`.
 
 ## Local preview
 
@@ -49,6 +50,7 @@ Add an entry to `data/peaks.json` with the summit coordinates, height and a typi
 - Map style © [Thunderforest](https://www.thunderforest.com/) (Outdoors); map data © OpenStreetMap contributors; shown with [Leaflet](https://leafletjs.com/). Thunderforest's free tier has a monthly limit and is meant for non-commercial projects; check their terms if traffic grows.
 - Homepage photos via [Pexels](https://www.pexels.com/) (Pexels licence). Steel Fell photo by Karl and Ali on [Geograph](https://www.geograph.org.uk/profile/37389), CC BY-SA 2.0.
 - Terrain: Copernicus DEM GLO-90 (© DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018, provided under COPERNICUS by the European Union and ESA). Hill names © OpenStreetMap contributors (ODbL).
+- 360° photos: Mapillary contributors, CC BY-SA 4.0, credited under each photo. Viewer: Pannellum (MIT).
 - Fonts: Barlow Condensed and Source Sans 3, SIL Open Font License (see `assets/fonts`).
 
 Code licensed under MIT (see `LICENSE`).

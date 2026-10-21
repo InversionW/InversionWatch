@@ -26,7 +26,7 @@ DATA = os.path.join(ROOT, "data")
 API = "https://api.open-meteo.com/v1/forecast"
 LEVELS = [1000, 975, 950, 925, 900, 850, 800, 700]  # hPa, roughly 100 m to 3 km
 DAYS = 6
-PROFILE_HOURS = list(range(3, 13))  # 03:00 to 12:00 local, for the slider
+PROFILE_HOURS = list(range(3, 13))  # 03:00 to 12:00 local, for the profile and skyline sliders
 LAPSE = 6.5 / 1000  # normal cooling, °C per metre
 
 # Score weights, out of 100. Keep in sync with the "How the score works" text.
