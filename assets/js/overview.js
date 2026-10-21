@@ -18,6 +18,7 @@
       s.hidden = false;
     }
     render();
+    if (IW.motion) try { IW.motion.refresh(); } catch (e) {}
   }).catch(function () {
     document.getElementById('heatmap').innerHTML = '<p class="muted" style="padding: 20px">The forecast could not be loaded. Please try again later.</p>';
   });
@@ -95,7 +96,7 @@
     var d = p.days[di];
     var margin = d.cloud ? (p.elev - d.cloud[1] >= 0 ? (p.elev - d.cloud[1]) + ' m above the cloud' : 'In the cloud') : 'No cloud layer expected';
     return '<li><a href="peak.html?id=' + p.id + '&day=' + di + '"><span class="badge ' + IW.heat(d.score) + '">' + d.score + '%</span>' +
-      '<span class="stack" style="--gap: 0; min-width: 0"><b style="font-size: 17px">' + IW.esc(p.name) + '</b><span class="muted small">' + p.elev + ' m · ' + margin + '</span></span>' +
+      '<span class="stack" style="--gap: 0; min-width: 0"><b style="font-size: 17px">' + IW.esc(p.name) + '</b><span class="muted small">' + p.elev + ' m · ' + (d.why ? IW.esc(d.why) : margin) + '</span></span>' +
       '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></a></li>';
   }
 

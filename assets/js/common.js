@@ -135,3 +135,107 @@
     return i < 0;
   };
 })();
+
+/* Motion: scroll reveals, heading wipes, heatmap ripple, count-ups, chart drawing and hero parallax.
+   Nothing here runs if the device asks for reduced motion, so the page simply appears as normal. */
+(function () {
+  'use strict';
+  var IW = window.IW, root = document.documentElement;
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduce || !('IntersectionObserver' in window) || !('requestAnimationFrame' in window)) return;
+  root.classList.add('js-motion');
+
+  var COUNTABLE = '.badge, .big-num';
+  function countUp(el) {
+    var m = /^(\d+)%$/.exec(el.textContent.trim());
+    if (!m) return;
+    var end = +m[1], t0 = null, last;
+    function step(t) {
+      if (last !== undefined && el.textContent !== last) return; // the page changed it; stop
+      if (!t0) t0 = t;
+      var p = Math.min(1, (t - t0) / 1100);
+      last = Math.round(end * (1 - Math.pow(1 - p, 3))) + '%';
+      el.textContent = last;
+      if (p < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+  function play(el) {
+    el.classList.add('in');
+    if (el.matches(COUNTABLE)) countUp(el);
+    el.querySelectorAll(COUNTABLE).forEach(countUp);
+  }
+
+  var io = new IntersectionObserver(function (es) {
+    es.forEach(function (e) {
+      if (!e.isIntersecting) return;
+      play(e.target);
+      io.unobserve(e.target);
+    });
+  }, {threshold: 0.12, rootMargin: '0px 0px -6% 0px'});
+
+  function watch(el) { if (el.dataset.motion) return; el.dataset.motion = '1'; io.observe(el); }
+
+  function tag() {
+    document.querySelectorAll('[data-stagger]').forEach(function (g) {
+      Array.prototype.forEach.call(g.children, function (c, i) { c.classList.add('reveal'); c.style.setProperty('--delay', (i * 80) + 'ms'); });
+    });
+    document.querySelectorAll('main .card, main [data-reveal]').forEach(function (el) {
+      if (el.parentElement.closest('.card, [data-reveal]')) return;
+      el.classList.add('reveal');
+      var p = el.parentElement;
+      if (p.classList.contains('grid-2') && el !== p.firstElementChild && !el.style.getPropertyValue('--delay')) el.style.setProperty('--delay', '120ms');
+    });
+    document.querySelectorAll('.reveal h2').forEach(function (h) { h.classList.add('wipe'); });
+    document.querySelectorAll('.reveal, .heatmap, .zoom, .draws').forEach(watch);
+  }
+
+  function prep() {
+    document.querySelectorAll('.heatmap tbody tr').forEach(function (tr, r) {
+      tr.querySelectorAll('td button').forEach(function (b, c) { b.style.setProperty('--d', (c * 55 + r * 30) + 'ms'); });
+    });
+    document.querySelectorAll('.draws').forEach(function (box) {
+      box.querySelectorAll('.draw').forEach(function (p, i) {
+        if (p.getTotalLength) { p.style.setProperty('--len', Math.ceil(p.getTotalLength())); p.style.setProperty('--d', (i * 250) + 'ms'); }
+      });
+    });
+  }
+
+  /* Pages call this once their data has rendered, so things that were already on screen still animate. */
+  IW.motion = {
+    refresh: function () {
+      tag(); prep();
+      var vh = window.innerHeight;
+      document.querySelectorAll('[data-motion].in').forEach(function (el) {
+        var r = el.getBoundingClientRect();
+        el.classList.remove('in');
+        if (r.top < vh * 0.94 && r.bottom > 0) {
+          void el.offsetWidth; play(el);        // still on screen: replay now the data is in
+        } else {
+          io.observe(el);                       // pushed down by the data: wait until it's scrolled to
+        }
+      });
+    }
+  };
+
+  // Hero: drifting cloud, parallax photo, headline fades as you scroll away.
+  var hero = document.querySelector('.hero');
+  if (hero) {
+    var bg = document.createElement('div'); bg.className = 'hero-bg'; bg.setAttribute('aria-hidden', 'true');
+    var clouds = document.createElement('div'); clouds.className = 'hero-clouds'; clouds.setAttribute('aria-hidden', 'true'); clouds.innerHTML = '<i></i><i></i><i></i>';
+    hero.insertBefore(clouds, hero.firstChild); hero.insertBefore(bg, hero.firstChild);
+    var text = hero.querySelector('.wrap'), ticking = false;
+    window.addEventListener('scroll', function () {
+      if (ticking) return; ticking = true;
+      requestAnimationFrame(function () {
+        ticking = false;
+        var y = window.scrollY, h = hero.offsetHeight;
+        if (y > h * 1.3) return;
+        bg.style.transform = 'translate3d(0,' + (y * 0.4) + 'px,0)';
+        if (text) { text.style.transform = 'translate3d(0,' + (y * 0.15) + 'px,0)'; text.style.opacity = Math.max(0, 1 - y / (h * 0.85)); }
+      });
+    }, {passive: true});
+  }
+
+  tag(); prep();
+})();

@@ -26,9 +26,10 @@ Six-day cloud inversion forecasts for UK peaks. A static site hosted on GitHub P
 1. **Turn on Pages:** Settings › Pages › Build and deployment › Source: *Deploy from a branch*, Branch: `main`, folder `/ (root)`.
 2. **Let the Action push:** Settings › Actions › General › Workflow permissions › *Read and write permissions*.
 3. **Run it once:** Actions › *Update forecast* › *Run workflow*. Until it runs, the site shows sample data with a banner.
-4. **Map key:** get a free key from [Thunderforest](https://www.thunderforest.com/), paste it into `assets/js/config.js`, and restrict it to your site's address in your Thunderforest account. Without a key the map falls back to the standard OpenStreetMap style.
-5. **Fill in your details:** replace `YOUR-USERNAME` in the `data-repo` attribute at the top of each `.html` file, and `[YOUR CONTACT EMAIL]` in `privacy.html` and `terms.html`.
-6. **Custom domain (optional):** add it under Settings › Pages, then delete the `<script>` line marked in `404.html`.
+4. **Build the summit skylines once:** Actions › *Build summit skylines* › *Run workflow*. Run it again whenever you add peaks. Until it runs, the "View from the summit" card is hidden.
+5. **Map key:** get a free key from [Thunderforest](https://www.thunderforest.com/), paste it into `assets/js/config.js`, and restrict it to your site's address in your Thunderforest account. Without a key the map falls back to the standard OpenStreetMap style.
+6. **Fill in your details:** replace `YOUR-USERNAME` in the `data-repo` attribute at the top of each `.html` file, and `[YOUR CONTACT EMAIL]` in `privacy.html` and `terms.html`.
+7. **Custom domain (optional):** add it under Settings › Pages, then delete the `<script>` line marked in `404.html`.
 
 ## Local preview
 
@@ -47,6 +48,7 @@ Add an entry to `data/peaks.json` with the summit coordinates, height and a typi
 - GitHub Pages is not meant for running an online business, so a commercial version should move hosting too.
 - Map style © [Thunderforest](https://www.thunderforest.com/) (Outdoors); map data © OpenStreetMap contributors; shown with [Leaflet](https://leafletjs.com/). Thunderforest's free tier has a monthly limit and is meant for non-commercial projects; check their terms if traffic grows.
 - Homepage photos via [Pexels](https://www.pexels.com/) (Pexels licence). Steel Fell photo by Karl and Ali on [Geograph](https://www.geograph.org.uk/profile/37389), CC BY-SA 2.0.
+- Terrain: Copernicus DEM GLO-90 (© DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018, provided under COPERNICUS by the European Union and ESA). Hill names © OpenStreetMap contributors (ODbL).
 - Fonts: Barlow Condensed and Source Sans 3, SIL Open Font License (see `assets/fonts`).
 
 Code licensed under MIT (see `LICENSE`).

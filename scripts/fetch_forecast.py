@@ -240,6 +240,134 @@ def verdict(score, c, peak):
     return "Unlikely this morning."
 
 
+def explain(c, peak, f, score):
+    """Plain-English reasons for the score: what's helping, what's holding it back, and what would change it.
+
+    Each signal is judged the same way the score judges it (its 0-1 factor), so the words always match the numbers.
+    """
+    elev = peak["elev"]
+    items = []  # (key, state, short label, sentence, points lost)
+
+    def add(key, state, short, text):
+        items.append({"key": key, "state": state, "short": short, "text": text, "lost": round(WEIGHTS[key] * (1 - f[key]), 1)})
+
+    def grade(key):
+        v = f[key]
+        return "good" if v >= 0.67 else "bad" if v < 0.34 else "mixed"
+
+    # 1. The warm layer (the inversion itself)
+    inv, top = c["inv"], c["inv_top"]
+    if inv < MIN_INVERSION:
+        add("diff", "bad", "no warm layer",
+            f"No warm layer: the air cools steadily with height ({fmt_t(c['vt'])} in the valley, {fmt_t(c['st'])} on top), so there's nothing to trap cloud below you.")
+    elif grade("diff") == "good":
+        add("diff", "good", "strong warm layer",
+            f"Strong warm layer: around {top} m the air is {inv:.1f}°C warmer than the valley floor, a firm lid to hold the cloud down.")
+    else:
+        add("diff", "mixed", "weak warm layer",
+            f"Weak warm layer: only {inv:.1f}°C warmer than the valley, around {top} m. It may not hold the cloud for long after sunrise.")
+
+    # 2. Moisture
+    rh = c["rh_valley"]
+    g = grade("moist")
+    add("moist", g, {"good": "damp valleys", "mixed": "fairly damp valleys", "bad": "dry valleys"}[g],
+        {"good": f"Damp valley air ({rh}% humidity), so there's moisture to form cloud or fog.",
+         "mixed": f"Valley air is only fairly damp ({rh}% humidity), so any cloud may be thin or patchy.",
+         "bad": f"Dry valley air ({rh}% humidity): even under a lid there may be no cloud to look down on, just a clear or hazy view."}[g])
+
+    # 3. Wind
+    w = c["wind"]
+    g = grade("wind")
+    add("wind", g, {"good": "light winds", "mixed": "breezy on top", "bad": "strong winds"}[g],
+        {"good": f"Light winds on top ({w} mph), so the layers can settle undisturbed.",
+         "mixed": f"Breezy on top ({w} mph), which can stir the layers and thin the cloud.",
+         "bad": f"Strong winds on top ({w} mph) will mix the air and break up any inversion."}[g])
+
+    # 4. Pressure
+    pr = c["pressure"]
+    g = grade("pressure")
+    add("pressure", g, {"good": "high pressure", "mixed": "middling pressure", "bad": "low pressure"}[g],
+        {"good": f"High pressure ({pr} hPa): sinking air keeps a lid on the cloud.",
+         "mixed": f"Middling pressure ({pr} hPa), not the settled high that inversions like best.",
+         "bad": f"Low pressure ({pr} hPa) usually means unsettled, well-mixed air."}[g])
+
+    # 5. Where the cloud top sits
+    cl = c["cloud"]
+    if not cl:
+        add("below", "bad", "no valley cloud",
+            "No cloud layer is forecast below the summit, so even with a warm layer the valleys may stay clear.")
+    elif c["inv"] < MIN_INVERSION:
+        add("below", "mixed", "ordinary low cloud",
+            f"There's low cloud around {cl[0]}–{cl[1]} m, below the summit, but with no warm layer on top it's likely to be broken and drifting, not a flat sea.")
+    elif cl[1] >= elev:
+        add("below", "bad", "cloud up to the summit",
+            f"Cloud reaches about {cl[1]} m, above the {elev} m summit, so you'd probably be inside it.")
+    elif grade("below") == "good":
+        add("below", "good", "cloud well below the top",
+            f"Cloud tops out around {cl[1]} m, {elev - cl[1]} m below the summit, so you'd stand well clear of it.")
+    else:
+        add("below", "mixed", "cloud close to the top",
+            f"Cloud tops out around {cl[1]} m, only {elev - cl[1]} m below the summit. A small rise could put you in it.")
+
+    # 6. The sky above
+    hc = c["high_cloud"]
+    g = grade("clear")
+    add("clear", g, {"good": "clear sky above", "mixed": "some high cloud", "bad": "thick high cloud"}[g],
+        {"good": f"Clear sky above ({hc}% high cloud), good for sunrise light on the cloud.",
+         "mixed": f"Some high cloud ({hc}%) may dull the sunrise colours.",
+         "bad": f"Thick high cloud ({hc}%) will likely hide the sunrise, even if the cloud sea forms."}[g])
+
+    good = [i for i in items if i["state"] == "good"]
+    held = sorted([i for i in items if i["state"] != "good"], key=lambda i: -i["lost"])
+
+    # What would change it: the signal costing the most points.
+    NEED = {
+        "diff": ("a warm layer to form above the valley. That usually takes a calm, clear night under high pressure" if inv < MIN_INVERSION
+                 else "a stronger warm layer, a few degrees warmer than the valley. A calm, clear night would help"),
+        "moist": "damper valley air, for example the morning after rain",
+        "wind": f"the wind on top to drop to about 10 mph or less",
+        "pressure": "high pressure to build in",
+        "below": ("fog or low cloud to form in the valleys" if not cl else f"the cloud top to sit lower, below about {elev - 150} m"),
+        "clear": "the high cloud to clear for the best of the sunrise",
+    }
+    need = "What could spoil it: very little on this forecast, but it can still shift. Check MWIS the evening before."
+    if held:
+        top_miss = held[0]
+        if c["inv"] < MIN_INVERSION:
+            top_miss = next(i for i in held if i["key"] == "diff")
+        lead = "What could spoil it" if score >= 65 else "What would change it"
+        if lead == "What could spoil it":
+            need = f"{lead}: {top_miss['short']}. Check MWIS the evening before."
+        else:
+            need = f"{lead}: it would need {NEED[top_miss['key']]}."
+
+    # One line for lists: the main reason, in a few words.
+    sc = score
+    if sc >= 65:
+        order = ["diff", "below", "wind", "moist", "pressure", "clear"]
+        best = sorted(good, key=lambda i: order.index(i["key"]))[:2]
+        short = " and ".join(i["short"] for i in best).capitalize() or "Signals line up"
+    elif sc >= 40:
+        pos = sorted(good, key=lambda i: -WEIGHTS[i["key"]])
+        short = (pos[0]["short"].capitalize() + ", but " if pos else "") + (held[0]["short"] if held else "mixed signals")
+        if not pos:
+            short = short.capitalize()
+    else:
+        miss = next((i for i in held if i["key"] == "diff"), held[0]) if c["inv"] < MIN_INVERSION else held[0]
+        short = miss["short"].capitalize()
+    return {
+        "good": [i["text"] for i in good],
+        "held": [{"text": i["text"], "state": i["state"]} for i in held],
+        "need": need,
+        "short": short,
+    }
+
+
+def fmt_t(t):
+    r = round(t)
+    return ("−" if r < 0 else "") + f"{abs(r)}°C"
+
+
 def conditions_at(resp, idx, peak):
     h = resp["hourly"]
     profile = []
@@ -315,12 +443,12 @@ def process(peak, resp, generated):
         conf = "High" if d < 2 else "Medium" if d == 2 else "Low"
         day = {
             "date": date, "sunrise": sunrise[11:16], "score": score, "conf": conf,
-            "verdict": verdict(score, c, peak), "window": window,
+            "verdict": verdict(score, c, peak), "why": explain(c, peak, factors, score), "window": window,
             "st": c["st"], "vt": c["vt"], "wind": c["wind"], "pressure": c["pressure"],
             "rh_valley": c["rh_valley"], "high_cloud": c["high_cloud"],
             "cloud": c["cloud"], "inv_top": c["inv_top"], "inv": c["inv"], "fz": c["fz"], "factors": factors,
         }
-        summary_days.append({k: day[k] for k in ("date", "sunrise", "score", "conf", "window", "st", "vt", "wind", "cloud")})
+        summary_days.append(dict({k: day[k] for k in ("date", "sunrise", "score", "conf", "window", "st", "vt", "wind", "cloud")}, why=day["why"]["short"]))
         detail_days.append(dict(day, hours=hours))
     return summary_days, {"id": peak["id"], "generated_at": generated, "days": detail_days}
 

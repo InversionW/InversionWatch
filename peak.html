@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en-GB" data-repo="https://github.com/YOUR-USERNAME/inversion-watch">
+<html lang="en-GB" data-repo="https://github.com/InversionW/InversionWatch">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -49,6 +49,11 @@
 <div><dt>Feels like at the top</dt><dd id="sum-chill"></dd></div>
 </dl>
 </div>
+<div class="why" id="why" hidden>
+<div class="stack" style="--gap: 8px"><h3 class="why-h">What's helping</h3><ul id="why-good"></ul></div>
+<div class="stack" style="--gap: 8px"><h3 class="why-h">What's holding it back</h3><ul id="why-held"></ul></div>
+<p class="why-need" id="why-need"></p>
+</div>
 </section>
 
 <div class="tabs" role="tablist" aria-label="Peak sections">
@@ -65,7 +70,7 @@
 </section>
 
 <section class="grid-2">
-<figure class="card profile stack" style="margin: 0; --gap: 14px">
+<figure class="card profile draws stack" style="margin: 0; --gap: 14px">
 <figcaption class="stack" style="--gap: 6px">
 <span class="eyebrow">Atmospheric profile</span>
 <span style="font-size: 18px; font-weight: 600" id="profile-head"></span>
@@ -101,6 +106,25 @@
 </div>
 </section>
 </section>
+
+<figure class="card stack draws" id="skyline-card" style="margin: 0; --gap: 16px" hidden>
+<figcaption class="stack" style="--gap: 6px">
+<span class="eyebrow">View from the summit <span id="sky-hour" style="font-weight: 600; text-transform: none; letter-spacing: 0"></span></span>
+<span style="font-size: 18px; font-weight: 600" id="sky-head"></span>
+</figcaption>
+<dl class="facts" style="--gap: 12px 32px">
+<div><dt>First sun on the summit</dt><dd id="sky-sun"></dd><span class="muted small" id="sky-sun-note"></span></div>
+<div><dt>View</dt><dd id="sky-open"></dd><span class="muted small" id="sky-open-note"></span></div>
+<div><dt>Higher hills in view</dt><dd id="sky-higher"></dd><span class="muted small" id="sky-higher-note"></span></div>
+</dl>
+<div class="pano" id="pano" tabindex="0" aria-label="360 degree skyline from the summit. Scroll sideways to look around."></div>
+<ul class="key">
+<li><i aria-hidden="true" style="width: 28px; height: 14px; margin-top: 3px; background: var(--brand); display: block"></i><span><b>Skyline.</b> <span class="muted">The hills all the way round, worked out from terrain data. Heights are stretched so you can see the shape.</span></span></li>
+<li><i aria-hidden="true" style="width: 28px; height: 14px; margin-top: 3px; background: #FFFFFF; border: 1px solid var(--border); display: block"></i><span><b>Cloud sea.</b> <span class="muted">The forecast cloud top for the time on the profile slider. Hills that poke through it are drawn on top.</span></span></li>
+<li><svg width="28" height="14" aria-hidden="true"><circle cx="14" cy="7" r="6" fill="var(--accent)"/></svg><span><b>First sun.</b> <span class="muted">Where and when the sun first clears the skyline from the summit.</span></span></li>
+</ul>
+<p class="muted small" style="margin: 0">Terrain from the Copernicus DEM (about 90 m detail), hill names from OpenStreetMap. Small tops and crags close to the summit may be missed.</p>
+</figure>
 </div>
 
 <div id="panel-plan" role="tabpanel" aria-labelledby="tab-plan" class="grid-2" hidden>
