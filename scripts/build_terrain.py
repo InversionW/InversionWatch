@@ -287,7 +287,29 @@ def skyline(peak, dem, names):
         "who": who,                                    # index into "hills", or -1
         "hills": near,
         "open": round(below, 3),                       # share of directions where the skyline is below the summit
+        "cloud": cloud_views(z, d, peak["elev"]),     # where a cloud sea at each height would be seen
     }
+
+
+def cloud_views(z, d, summit, step=50, az_step=2):
+    """For a flat cloud top at each height (every 50 m below the summit), and every 2° of compass:
+    how far out the cloud starts (where the ground first drops below it) and where it ends
+    (where the ground rises above it again, or 0 for 'out to the horizon'). In tens of metres.
+    The page turns these into the angles the cloud sea would fill, for the forecast cloud top."""
+    levels = list(range(100, int(summit // step) * step, step))
+    rows = z[::az_step]                      # (180, distances)
+    near_all, far_all = [], []
+    idx = np.arange(rows.shape[1])
+    for lv in levels:
+        below = rows < lv
+        has = below.any(axis=1)
+        near = np.where(has, np.argmax(below, axis=1), 0)
+        above_after = (~below) & (idx[None, :] > near[:, None])
+        has_far = above_after.any(axis=1) & has
+        far = np.where(has_far, np.argmax(above_after, axis=1), 0)
+        near_all.append([int(round(d[n] / 10)) if ok else 0 for n, ok in zip(near, has)])
+        far_all.append([int(round(d[f] / 10)) if ok else 0 for f, ok in zip(far, has_far)])
+    return {"levels": levels, "az_step": az_step, "near": near_all, "far": far_all}
 
 
 def _latlon(lat, lon, nm):

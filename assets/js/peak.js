@@ -3,7 +3,7 @@
   'use strict';
   IW.chrome('peak');
   var id = IW.qs('id') || 'helvellyn';
-  var state = {day: Math.max(0, Math.min(5, +(IW.qs('day') || 0))), hour: null, sky: null, face: IW.get('face', 'S'), tab: 'forecast', pace: IW.get('pace', 1)};
+  var state = {day: Math.max(0, Math.min(5, +(IW.qs('day') || 0))), hour: null, sky: null, face: IW.get('face', 'S'), cloudOn: IW.get('cloudOn', true), tab: 'forecast', pace: IW.get('pace', 1)};
   var PACES = [['Relaxed', 1.25], ['Steady', 1], ['Quick', 0.85]];
   var BUFFER = 20;
   var summary, peak, area, detail, stale = false, terrain = null;
@@ -77,12 +77,16 @@
     ['S', 'N'].forEach(function (f) {
       document.getElementById('face-' + f).addEventListener('click', function () {
         state.face = f; IW.set('face', f);
-        if (photo.state === 'ready') photo.viewer.lookAt(4, yawFor(f === 'N' ? 0 : 180), 100); else renderSkyline();
+        if (gsv.state === 'open') gsv.panorama.setPov({heading: f === 'N' ? 0 : 180, pitch: 4});
+        else if (photo.state === 'ready') photo.viewer.lookAt(4, yawFor(f === 'N' ? 0 : 180), 100); else renderSkyline();
       });
     });
+    document.getElementById('gsv-open').addEventListener('click', openGoogle);
+    document.getElementById('cloud-toggle').addEventListener('change', function (e) { state.cloudOn = e.target.checked; IW.set('cloudOn', state.cloudOn); renderSkyline(); });
     document.getElementById('face-sun').addEventListener('click', function () {
-      if (photo.state !== 'ready') return;
       var q = skyDay(day()).path[state.sky || 0];
+      if (gsv.state === 'open' && q) { gsv.panorama.setPov({heading: q.az, pitch: Math.max(2, q.alt / 2)}); return; }
+      if (photo.state !== 'ready') return;
       if (q) photo.viewer.lookAt(Math.max(2, q.alt / 2), yawFor(q.az), Math.min(120, Math.max(80, q.alt * 2.6)));
     });
 
@@ -389,19 +393,52 @@
     hrs.forEach(function (h) { var hh = +h.t.slice(0, 2); if (!best || Math.abs(hh - want) < Math.abs(+best.t.slice(0, 2) - want)) best = h; });
     return best;
   }
+  // Last moment the sun is above the skyline in the evening.
+  function lastLight(dateIso) {
+    var p = dateIso.split('-'), t = Date.UTC(+p[0], +p[1] - 1, +p[2], 23, 0), stop = Date.UTC(+p[0], +p[1] - 1, +p[2], 12, 0);
+    for (; t > stop; t -= 30000) { var s = sunAt(t, terrain.lat, terrain.lon); if (s.alt >= skyAt(s.az) - 0.833) return t; }
+    return null;
+  }
   var skyCache = {};
   function skyDay(d) {
     if (skyCache[d.date]) return skyCache[d.date];
-    var fl = firstLight(d), path = [];
-    var p = d.date.split('-'), noonUtc = Date.UTC(+p[0], +p[1] - 1, +p[2], 12, 0);
-    var end = noonUtc - (localHour(noonUtc) - 12) * 3600000; // 12:00 UK time
-    if (fl) for (var t = fl.t; t <= end; t += 10 * 60000) { var sp = sunAt(t, terrain.lat, terrain.lon); path.push({t: t, az: sp.az, alt: sp.alt}); }
+    var fl = firstLight(d), path = [], end = lastLight(d.date);
+    if (fl && end) {
+      var add = function (t) { var sp = sunAt(t, terrain.lat, terrain.lon); path.push({t: t, az: sp.az, alt: sp.alt}); };
+      add(fl.t);
+      for (var t = Math.ceil((fl.t + 1) / 600000) * 600000; t < end; t += 600000) add(t);
+    }
     if (path.length && path[path.length - 1].t < end) { var se = sunAt(end, terrain.lat, terrain.lon); path.push({t: end, az: se.az, alt: se.alt}); }
-    return (skyCache[d.date] = {fl: fl, path: path});
+    return (skyCache[d.date] = {fl: fl, ll: end, path: path});
+  }
+
+  /* ---------- the forecast cloud sea, as angles: for each 2° of compass, the top (far edge) and bottom (near edge) */
+  function cloudBand(ct) {
+    var c = terrain && terrain.cloud;
+    if (!c || !ct || !c.levels.length) return null;
+    var k = 0;
+    c.levels.forEach(function (lv, i) { if (Math.abs(lv - ct) < Math.abs(c.levels[k] - ct)) k = i; });
+    var lv = c.levels[k], R = 6371000, K = 0.13, ang = function (dd) { return Math.atan2(lv - terrain.eye - dd * dd / (2 * R) * (1 - K), dd) * 180 / Math.PI; };
+    var out = [];
+    for (var i = 0; i < c.near[k].length; i++) {
+      var n = c.near[k][i] * 10, f = c.far[k][i] * 10;
+      out.push(n ? {az: i * c.az_step, top: ang(f || 40000), bottom: ang(Math.max(n, 60))} : null);
+    }
+    return {level: lv, cols: out};
+  }
+  // Runs of neighbouring columns that have cloud, so each can be drawn as one shape.
+  function bandRuns(band, from, to) {
+    var runs = [], cur = null, st = band.cols.length, step = 360 / st;
+    for (var a = from; a <= to; a += step) {
+      var i = Math.round(((a % 360) + 360) % 360 / step) % st, col = band.cols[i];
+      if (col) { if (!cur) { cur = []; runs.push(cur); } cur.push({az: a, top: col.top, bottom: col.bottom}); } else cur = null;
+    }
+    return runs;
   }
 
   /* ---------- the summit photo (Mapillary 360°), when there is one */
   var photo = {entry: null, state: 'none', viewer: null, spots: [], fixed: false};
+  function startMapillary() {
   IW.load('data/panos.json').then(function (j) {
     var e = j && j.peaks && j.peaks[id], tok = (window.IW_CONFIG || {}).mapillaryToken;
     if (!e || !tok) return;
@@ -416,6 +453,127 @@
       })
       .catch(function () { photo.state = 'failed'; if (detail && terrain) renderSkyline(); });
   }).catch(function () {});
+  }
+
+  /* ---------- Google Street View from the summit (preferred when there is one) */
+  var gsv = {state: 'none', pano: null, panorama: null, at: null};
+  (function startGoogle() {
+    var key = (window.IW_CONFIG || {}).googleMapsKey;
+    if (!key) { startMapillary(); return; }
+    gsv.state = 'looking';
+    window.__iwGmaps = function () {
+      // Finding the nearest 360° view is a free metadata lookup; nothing is billed until someone opens it.
+      var where = function () { return terrain ? {lat: terrain.lat, lng: terrain.lon} : {lat: peak ? peak.lat : 0, lng: peak ? peak.lon : 0}; };
+      var go = function () {
+        new google.maps.StreetViewService().getPanorama({location: where(), radius: 100, preference: google.maps.StreetViewPreference.NEAREST, sources: [google.maps.StreetViewSource.DEFAULT]}, function (data, status) {
+          if (status === 'OK' && data && data.location) {
+            gsv.state = 'found'; gsv.pano = data.location.pano;
+            gsv.at = {lat: data.location.latLng.lat(), lng: data.location.latLng.lng(), desc: data.location.description || '', when: data.imageDate || ''};
+            if (detail && terrain) renderSkyline();
+          } else { gsv.state = 'none'; startMapillary(); }
+        });
+      };
+      if (peak) go(); else { var wait = setInterval(function () { if (peak) { clearInterval(wait); go(); } }, 200); }
+    };
+    var js = document.createElement('script');
+    js.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(key) + '&v=weekly&callback=__iwGmaps';
+    js.async = true; js.onerror = function () { gsv.state = 'none'; startMapillary(); };
+    document.head.appendChild(js);
+  })();
+
+  // Open the Street View (this is the only step that counts towards Google's monthly allowance).
+  function openGoogle() {
+    if (gsv.state !== 'found') return;
+    var d = day(), sd = skyDay(d), q = sd.path[state.sky || 0] || sd.path[0];
+    document.getElementById('gsv-frame').hidden = false;
+    document.getElementById('gsv-open').hidden = true;
+    gsv.panorama = new google.maps.StreetViewPanorama(document.getElementById('gsv-view'), {
+      pano: gsv.pano, pov: {heading: q ? q.az : 120, pitch: q ? Math.max(2, q.alt / 2) : 4}, zoom: 1,
+      addressControl: false, showRoadLabels: false, linksControl: false, motionTracking: false, motionTrackingControl: false, fullscreenControl: false
+    });
+    ['pov_changed', 'zoom_changed', 'status_changed'].forEach(function (ev) { gsv.panorama.addListener(ev, drawOverlay); });
+    window.addEventListener('resize', drawOverlay);
+    gsv.state = 'open';
+    var dist = Math.round(haversine(gsv.at.lat, gsv.at.lng, terrain.lat, terrain.lon));
+    document.getElementById('gsv-credit').textContent = 'Street View imagery © Google and its contributors' + (gsv.at.when ? ', taken ' + gsv.at.when : '') + ', about ' + dist + ' m from the top. It shows the weather on the day it was taken, not the forecast.';
+    renderSkyline();
+  }
+  function haversine(a1, o1, a2, o2) {
+    var r = Math.PI / 180, x = Math.sin((a2 - a1) * r / 2), y = Math.sin((o2 - o1) * r / 2);
+    return 2 * 6371000 * Math.asin(Math.sqrt(x * x + Math.cos(a1 * r) * Math.cos(a2 * r) * y * y));
+  }
+
+  // Where a bearing and height (degrees) land on screen, for the current Street View camera. Null if behind you.
+  function project(az, alt, pov, zoom, w, h) {
+    var r = Math.PI / 180, fov = 180 / Math.pow(2, zoom), f = (w / 2) / Math.tan(fov / 2 * r);
+    var A = az * r, E = alt * r, H = pov.heading * r, P = pov.pitch * r;
+    var d = [Math.cos(E) * Math.sin(A), Math.cos(E) * Math.cos(A), Math.sin(E)];
+    var fw = [Math.cos(P) * Math.sin(H), Math.cos(P) * Math.cos(H), Math.sin(P)];
+    var rt = [Math.cos(H), -Math.sin(H), 0];
+    var up = [-Math.sin(P) * Math.sin(H), -Math.sin(P) * Math.cos(H), Math.cos(P)];
+    var z = d[0] * fw[0] + d[1] * fw[1] + d[2] * fw[2];
+    if (z <= 0.05) return null;
+    var x = d[0] * rt[0] + d[1] * rt[1], y = d[0] * up[0] + d[1] * up[1] + d[2] * up[2];
+    return {x: w / 2 + f * x / z, y: h / 2 - f * y / z};
+  }
+  var overlayItems = [], overlayBand = null;
+  function drawOverlay() {
+    if (gsv.state !== 'open' || !gsv.panorama) return;
+    var box = document.getElementById('gsv-over'), w = box.clientWidth, h = box.clientHeight;
+    var pov = gsv.panorama.getPov(), zoom = gsv.panorama.getZoom() || 1, html = '';
+    if (overlayBand && state.cloudOn) {
+      // Only the part of the view on screen: wider angles distort badly in a flat projection.
+      var fov = 180 / Math.pow(2, zoom), vhalf = Math.atan(h / w * Math.tan(fov / 2 * Math.PI / 180)) * 180 / Math.PI, svg = '';
+      var floor = pov.pitch - vhalf - 3;
+      bandRuns(overlayBand, pov.heading - fov / 2 - 6, pov.heading + fov / 2 + 6).forEach(function (run) {
+        var seg = [];
+        var flush = function () {
+          if (seg.length > 1) svg += '<polygon points="' + seg.map(function (q) { return q.t; }).concat(seg.map(function (q) { return q.b; }).reverse()).join(' ') + '"/>';
+          seg = [];
+        };
+        run.forEach(function (c) {
+          var t = project(c.az, c.top, pov, zoom, w, h), b = project(c.az, Math.max(c.bottom, floor), pov, zoom, w, h);
+          if (t && b) seg.push({t: t.x.toFixed(1) + ',' + t.y.toFixed(1), b: b.x.toFixed(1) + ',' + b.y.toFixed(1)}); else flush();
+        });
+        flush();
+      });
+      html += '<svg class="o-cloud" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '"><defs><filter id="ocb"><feGaussianBlur stdDeviation="3"/></filter></defs><g filter="url(#ocb)">' + svg + '</g></svg>';
+      // label near the left edge, just above the cloud top
+      var la = pov.heading - fov * 0.38, col = overlayBand.cols[Math.round((((la % 360) + 360) % 360) / (360 / overlayBand.cols.length)) % overlayBand.cols.length];
+      var lp = col ? project(la, col.top, pov, zoom, w, h) : null;
+      if (lp) html += '<span class="o-tag" style="left:' + Math.max(100, Math.min(w - 100, lp.x)).toFixed(1) + 'px;top:' + lp.y.toFixed(1) + 'px"><span class="iw-tag cloudtag">Forecast cloud top ≈ ' + overlayBand.level + ' m</span></span>';
+    }
+    overlayItems.forEach(function (it) {
+      var p = project(it.az, it.alt, pov, zoom, w, h);
+      if (!p || p.x < -80 || p.x > w + 80 || p.y < -40 || p.y > h + 40) return;
+      html += it.html.replace('{x}', p.x.toFixed(1)).replace('{y}', p.y.toFixed(1));
+    });
+    box.innerHTML = html;
+  }
+  function placeOnGoogle(path, now, hidden, band) {
+    overlayBand = band;
+    var items = [], tagStyle = 'left:{x}px;top:{y}px';
+    path.forEach(function (q, i) {
+      var a = q.alt + refract(q.alt), hr = new Date(q.t).toLocaleTimeString('en-GB', {hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London'});
+      items.push({az: q.az, alt: a, html: '<i class="o-dot" style="' + tagStyle + '"></i>'});
+      if (i && hr.slice(3) === '00' && +hr.slice(0, 2) % 2 === 0 && Math.abs(q.t - now.t) > 25 * 60000)
+        items.push({az: q.az, alt: a, html: '<span class="o-tag" style="' + tagStyle + '"><span class="iw-tag">' + hr + '</span></span>'});
+    });
+    var na = now.alt + refract(now.alt);
+    items.push({az: now.az, alt: na, html: '<i class="o-sun' + (hidden ? ' hidden' : '') + '" style="' + tagStyle + '"></i>'});
+    items.push({az: now.az, alt: na, html: '<span class="o-tag" style="' + tagStyle + '"><span class="iw-tag sun">' + hhmm(now.t) + (hidden ? ' · hidden' : '') + '</span></span>'});
+    var placed = [];
+    terrain.hills.filter(function (x) { return x.sky; }).forEach(function (x) {
+      if (placed.length >= 12 || placed.some(function (b) { return Math.abs(((x.b - b + 540) % 360) - 180) < 6; })) return;
+      placed.push(x.b);
+      items.push({az: x.b, alt: Math.max(x.a, skyAt(x.b)), html: '<span class="o-tag" style="' + tagStyle + '"><span class="iw-tag">' + IW.esc(x.name) + ' <small>' + x.ele + ' m</small></span></span>'});
+    });
+    ['N', 'E', 'S', 'W'].forEach(function (c, i) {
+      items.push({az: i * 90, alt: skyAt(i * 90) - 6, html: '<span class="o-tag" style="' + tagStyle + '"><span class="iw-tag compass">' + c + '</span></span>'});
+    });
+    overlayItems = items;
+    drawOverlay();
+  }
 
   function loadPannellum() {
     if (window.pannellum) return Promise.resolve();
@@ -480,12 +638,13 @@
     var d = day(), sd = skyDay(d), path = sd.path, fl = sd.fl;
     if (!path.length) { card.hidden = true; return; }
     if (state.sky == null || state.sky >= path.length) state.sky = 0;
-    var now = path[state.sky], h = hourFor(d, now.t);
-    var cloud = h ? h.cloud : d.cloud, ct = cloud ? cloud[1] : null;
+    var now = path[state.sky], afternoon = localHour(now.t + 30 * 60000) > 12, h = afternoon ? null : hourFor(d, now.t);
+    var cloud = afternoon ? null : h ? h.cloud : d.cloud, ct = cloud ? cloud[1] : null;
     var showCloud = ct && ct < peak.elev - 20;
     var sea = showCloud ? cloudAngle(ct, 40000) : -90;
     var hidden = now.alt < Math.max(skyAt(now.az), sea) - 0.833;
-    var usePhoto = photo.state === 'ready';
+    var useGoogle = gsv.state === 'open', canGoogle = gsv.state === 'found';
+    var usePhoto = !useGoogle && photo.state === 'ready';
 
     // slider and readout
     var range = document.getElementById('sky-range');
@@ -493,16 +652,20 @@
     range.setAttribute('aria-valuetext', hhmm(now.t));
     document.getElementById('sky-time').textContent = hhmm(now.t);
     document.getElementById('sky-hour').textContent = '· ' + IW.dayLong(d.date);
-    document.getElementById('sky-range-ends').textContent = 'first sun ' + hhmm(path[0].t) + ' to midday';
+    document.getElementById('sky-range-ends').textContent = 'first sun ' + hhmm(path[0].t) + ' to last sun ' + hhmm(path[path.length - 1].t);
     var k = Math.round(now.az) % 360, who = terrain.who[k] >= 0 ? terrain.hills[terrain.who[k]] : null;
     var where = dir16(now.az), upTxt;
     if (hidden && skyAt(now.az) >= sea) upTxt = 'The sun is behind ' + (who ? who.name : 'the hills') + ' to the ' + where + ', so the summit is in shade.';
     else if (hidden) upTxt = 'The sun is still below the cloud sea to the ' + where + '.';
     else upTxt = (now.alt < 1 ? 'The sun is just rising in the ' + where : 'The sun is ' + Math.round(now.alt) + '° up in the ' + where) + (showCloud && now.alt < 12 ? ', low enough to light the cloud sea gold.' : showCloud ? ', shining on the cloud sea.' : '.');
     document.getElementById('sky-now').textContent = upTxt;
+    var tg = document.getElementById('cloud-toggle');
+    tg.checked = !!state.cloudOn; tg.disabled = !showCloud;
+    document.getElementById('cloud-toggle-wrap').classList.toggle('muted', !showCloud);
     ['S', 'N'].forEach(function (f) { document.getElementById('face-' + f).setAttribute('aria-pressed', !usePhoto && state.face === f); });
-    document.getElementById('face-sun').hidden = !usePhoto;
-    document.getElementById('key-eye').hidden = usePhoto;
+    document.getElementById('face-sun').hidden = !usePhoto && !useGoogle;
+    document.getElementById('key-eye').hidden = usePhoto || useGoogle;
+    document.getElementById('gsv').hidden = !useGoogle && !canGoogle;
 
     // facts
     document.getElementById('sky-sun').textContent = fl ? hhmm(fl.t) : '–';
@@ -516,7 +679,8 @@
 
     // headline: the forecast cloud at this time, in words
     var head, at = h ? ' at ' + h.t : '';
-    if (!ct) head = 'No cloud layer forecast' + at + ', so no cloud sea.';
+    if (afternoon) head = 'The cloud forecast covers the morning only, when inversions form. This shows where the sun is later in the day.';
+    else if (!ct) head = 'No cloud layer forecast' + at + ', so no cloud sea.';
     else if (!showCloud) head = 'Cloud tops out around ' + ct + ' m' + at + ', at or above the summit, so you would probably be in it.';
     else {
       var secs = [], names8 = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
@@ -531,6 +695,12 @@
     }
     document.getElementById('sky-head').textContent = head;
 
+    if (useGoogle) {
+      document.getElementById('pano').hidden = true;
+      document.getElementById('photo360').hidden = true;
+      placeOnGoogle(path, now, hidden, showCloud ? cloudBand(ct) : null);
+      return;
+    }
     if (usePhoto) {
       document.getElementById('pano').hidden = true;
       document.getElementById('photo360').hidden = false;
@@ -550,10 +720,26 @@
     var txt = cs('--text'), mut = cs('--muted'), acc = cs('--accent'), halo = dark ? '#14211B' : '#EEF2F4';
     var sv = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Sun path from ' + IW.esc(peak.name) + ' at ' + hhmm(now.t) + '. ' + IW.esc(upTxt) + '">';
     sv += '<defs><linearGradient id="skyg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + (dark ? '#14211B' : '#DDE7EE') + '"/><stop offset="1" stop-color="' + (dark ? '#4A3424' : '#FBE3CC') + '"/></linearGradient>' +
-      '<radialGradient id="sung"><stop offset="0" stop-color="' + acc + '" stop-opacity=".55"/><stop offset="1" stop-color="' + acc + '" stop-opacity="0"/></radialGradient></defs>';
+      '<radialGradient id="sung"><stop offset="0" stop-color="' + acc + '" stop-opacity=".55"/><stop offset="1" stop-color="' + acc + '" stop-opacity="0"/></radialGradient><filter id="cblur"><feGaussianBlur stdDeviation="1.5"/></filter></defs>';
     sv += '<rect width="' + W + '" height="' + base + '" fill="url(#skyg)"/>';
     for (var g = 5; g < amax; g += 5) sv += '<line x1="0" x2="' + W + '" y1="' + Y(g) + '" y2="' + Y(g) + '" stroke="' + mut + '" opacity=".18"/><text x="' + (W - 6) + '" y="' + (Y(g) - 4) + '" text-anchor="end" font-size="11" fill="' + mut + '">' + g + '°</text>';
     sv += '<line x1="0" x2="' + W + '" y1="' + Y(0) + '" y2="' + Y(0) + '" stroke="' + mut + '" stroke-dasharray="3 5"/><text x="6" y="' + (Y(0) - 5) + '" font-size="11" fill="' + mut + '">Eye level</text>';
+    // the forecast cloud sea, where it would be seen (if switched on)
+    var band = showCloud && state.cloudOn ? cloudBand(ct) : null;
+    if (band) {
+      var runs = [];
+      var cols = [], stp = 360 / band.cols.length;
+      for (var xi = 0; xi <= 360; xi += stp) { var a0 = (az0 - 180 + xi + 720) % 360; cols.push({x: xi * PX, c: band.cols[Math.round(a0 / stp) % band.cols.length]}); }
+      var cur = null;
+      cols.forEach(function (q) { if (q.c) { if (!cur) { cur = []; runs.push(cur); } cur.push(q); } else cur = null; });
+      runs.forEach(function (run) {
+        if (run.length < 2) return;
+        var top = run.map(function (q) { return q.x.toFixed(1) + ',' + Y(q.c.top).toFixed(1); });
+        var bot = run.slice().reverse().map(function (q) { return q.x.toFixed(1) + ',' + Y(q.c.bottom).toFixed(1); });
+        sv += '<polygon points="' + top.concat(bot).join(' ') + '" fill="' + (dark ? '#C9D3DC' : '#FFFFFF') + '" opacity="' + (dark ? 0.35 : 0.75) + '" filter="url(#cblur)"/>';
+      });
+      sv += '<text x="' + (W - 8) + '" y="' + (Y(-3.4)).toFixed(1) + '" text-anchor="end" font-size="12" font-weight="700" fill="' + mut + '">Forecast cloud top ≈ ' + band.level + ' m</text>';
+    }
     // named tops, as markers at their real direction and height
     var placed = [];
     terrain.hills.filter(function (x) { return x.sky; }).forEach(function (x) {

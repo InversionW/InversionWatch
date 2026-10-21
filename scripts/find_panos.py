@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Find the best 360° photo taken on or right by each summit, from Mapillary.
 
-Writes data/panos.json: one entry per peak that has a photo within 150 m of the top.
+Writes data/panos.json: one entry per peak that has a photo within 100 m of the top.
 The peak page shows that photo, with the sun's path and the hill names placed on it.
 
 Needs a Mapillary client access token (free): set MAPILLARY_TOKEN, or put it in
@@ -21,7 +21,7 @@ import urllib.request
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data")
 API = "https://graph.mapillary.com/images"
-RADIUS = 150  # metres from the summit
+RADIUS = 100  # metres from the summit
 USER_AGENT = "InversionWatch/1.0 (360 photo search; GitHub Actions)"
 FIELDS = "id,is_pano,computed_compass_angle,compass_angle,captured_at,computed_geometry,geometry,creator"
 

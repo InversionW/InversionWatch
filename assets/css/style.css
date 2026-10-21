@@ -293,3 +293,21 @@ dl.facts > div > .small { display: block; max-width: 260px; }
 .iw-tag.sun::after { display: none; }
 .iw-tag.compass { font: 700 15px/1 var(--display); padding: 0; transform: translate(-50%, 0); }
 .iw-tag.compass::after { display: none; }
+
+/* Google Street View from the summit, with our own overlay drawn on top */
+.gsv { display: flex; flex-direction: column; gap: 8px; }
+.gsv-open { align-self: flex-start; flex-wrap: wrap; }
+.gsv-frame { position: relative; width: 100%; height: 460px; border-radius: var(--radius); overflow: hidden; background: var(--chart-bg); }
+@media (max-width: 600px) { .gsv-frame { height: 340px; } }
+#gsv-view { position: absolute; inset: 0; }
+.gsv-over { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 2; }
+.gsv-over .o-dot { position: absolute; width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%; background: #F6B678; box-shadow: 0 0 0 1.5px rgba(22,32,44,.55); }
+.gsv-over .o-sun { position: absolute; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%; background: radial-gradient(circle, #FFD08A 0 38%, rgba(240,160,92,.95) 40% 58%, rgba(240,160,92,0) 72%); box-shadow: 0 0 22px 8px rgba(246,182,120,.55); }
+.gsv-over .o-sun.hidden { opacity: .45; box-shadow: none; }
+.gsv-over .o-tag { position: absolute; }
+.switch { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-weight: 600; cursor: pointer; }
+.switch input { width: 20px; height: 20px; accent-color: var(--brand); margin: 0; }
+.gsv-over .o-cloud { position: absolute; inset: 0; }
+.gsv-over .o-cloud polygon { fill: rgba(255,255,255,.5); }
+.iw-tag.cloudtag { color: #FFFFFF; font-weight: 700; padding-bottom: 6px; }
+.iw-tag.cloudtag::after { display: none; }

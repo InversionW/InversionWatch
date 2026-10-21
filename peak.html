@@ -126,7 +126,15 @@
 </div>
 </div>
 <input type="range" id="sky-range" min="0" max="0" step="1" value="0" class="sky-range">
-<p class="small" style="margin: 2px 0 0; font-weight: 600" id="sky-now" aria-live="polite"></p>
+<div class="row" style="justify-content: space-between; --gap: 6px 16px; margin-top: 2px">
+<p class="small" style="margin: 0; font-weight: 600" id="sky-now" aria-live="polite"></p>
+<label class="switch small" id="cloud-toggle-wrap"><input type="checkbox" id="cloud-toggle" checked> Show forecast cloud</label>
+</div>
+</div>
+<div class="gsv" id="gsv" hidden>
+<button type="button" class="btn primary gsv-open" id="gsv-open">Look around from the summit <span class="muted small" style="color: inherit; opacity: .85; font-weight: 400">360° Street View</span></button>
+<div class="gsv-frame" id="gsv-frame" hidden><div id="gsv-view" role="application" aria-label="360 degree Street View from the summit. Drag to look around."></div><div class="gsv-over" id="gsv-over" aria-hidden="true"></div></div>
+<p class="muted small photo-credit" id="gsv-credit"></p>
 </div>
 <div class="photo360" id="photo360" hidden>
 <div id="photo360-view" class="photo360-view" role="img" aria-label="360 degree photo from the summit. Drag to look around."></div>
@@ -134,8 +142,9 @@
 </div>
 <div class="pano" id="pano" tabindex="0" aria-label="Sun path from the summit. Scroll sideways to look around."></div>
 <ul class="key">
-<li><svg width="28" height="14" aria-hidden="true"><circle cx="14" cy="7" r="6" fill="var(--accent)"/></svg><span><b>The sun.</b> <span class="muted">Where it is at the time on the slider. The dotted line is its path from first sun on the summit to midday, at its true height.</span></span></li>
+<li><svg width="28" height="14" aria-hidden="true"><circle cx="14" cy="7" r="6" fill="var(--accent)"/></svg><span><b>The sun.</b> <span class="muted">Where it is at the time on the slider. The dotted line is its path through the day, from first to last sun on the summit, at its true height.</span></span></li>
 <li><svg width="28" height="14" aria-hidden="true"><line x1="14" y1="1" x2="14" y2="13" stroke="var(--text)" stroke-width="2"/></svg><span><b>Hill names.</b> <span class="muted">Named tops on the skyline, placed at their real direction and height.</span></span></li>
+<li><i aria-hidden="true" style="width: 28px; height: 14px; margin-top: 3px; background: #FFFFFF; opacity: .8; border: 1px solid var(--border); display: block"></i><span><b>Forecast cloud.</b> <span class="muted">Where the cloud sea would sit at the time on the slider, worked out from the forecast cloud top and the terrain. Illustrative: the cloud top is usually right to within 100–200 m. Switch it off to see the plain view.</span></span></li>
 <li id="key-eye"><svg width="28" height="14" aria-hidden="true"><line x1="0" y1="7" x2="28" y2="7" stroke="var(--muted)" stroke-dasharray="3 3" stroke-width="2"/></svg><span><b>Eye level.</b> <span class="muted">Anything below this line is lower than you.</span></span></li>
 </ul>
 <p class="muted small" style="margin: 0" id="sky-source">First sun, the view and the higher hills are worked out from the Copernicus DEM (about 90 m detail), with hill names from OpenStreetMap. Small tops and crags close to the summit may be missed.</p>
