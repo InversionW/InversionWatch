@@ -32,6 +32,26 @@
 <main id="main" class="wrap stack" style="--gap: 28px; padding-top: 28px">
 <div id="stale" class="alert" role="alert" hidden></div>
 
+<section class="card bestbet reveal" id="bestbet" hidden aria-labelledby="bb-h">
+<div class="bb-main">
+<a class="dial" id="bb-dial" href="#" aria-hidden="true" tabindex="-1">
+<svg viewBox="0 0 120 120" width="120" height="120"><circle cx="60" cy="60" r="52" class="dial-track"/><circle cx="60" cy="60" r="52" class="dial-arc" id="bb-arc" transform="rotate(-90 60 60)"/></svg>
+<span class="dial-num"><span class="big-num" id="bb-score"></span></span>
+</a>
+<div class="stack" style="--gap: 6px; min-width: 0">
+<span class="eyebrow" id="bb-eyebrow">Best bet this week</span>
+<h2 id="bb-h"><a id="bb-link" href="#"></a></h2>
+<p class="muted" id="bb-meta"></p>
+<p id="bb-why"></p>
+<a class="btn primary" id="bb-go" href="#">See the forecast</a>
+</div>
+</div>
+<div class="bb-more" id="bb-more-wrap">
+<span class="eyebrow">Also worth a look</span>
+<ol class="bb-runners" id="bb-runners"></ol>
+</div>
+</section>
+
 <section class="card" style="padding: 0; overflow: hidden" aria-labelledby="heat-h">
 <div class="row" style="justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border)">
 <h2 id="heat-h">6-day inversion heatmap</h2>

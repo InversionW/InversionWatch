@@ -311,3 +311,76 @@ dl.facts > div > .small { display: block; max-width: 260px; }
 .gsv-over .o-cloud polygon { fill: rgba(255,255,255,.5); }
 .iw-tag.cloudtag { color: #FFFFFF; font-weight: 700; padding-bottom: 6px; }
 .iw-tag.cloudtag::after { display: none; }
+
+/* ---------- condensed peak page */
+/* score dial */
+.dial { position: relative; width: 120px; height: 120px; flex: 0 0 auto; }
+.dial svg { display: block; }
+.dial-track { fill: none; stroke: var(--border-soft); stroke-width: 11; }
+.dial-arc { fill: none; stroke: var(--muted); stroke-width: 11; stroke-linecap: round; transition: stroke-dashoffset .9s cubic-bezier(.2,.7,.2,1), stroke .3s; }
+.dial.dial-good .dial-arc { stroke: var(--brand); }
+.dial.dial-possible .dial-arc { stroke: #E0A040; }
+.dial.dial-unlikely .dial-arc { stroke: #8A96A6; }
+.dial-num { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+.dial-num .big-num { font-size: 34px; color: var(--text); }
+.summary-row .verdict-pill { align-self: flex-start; font-size: 22px; padding: 7px 12px; }
+.verdict-pill.small { font-size: 15px; padding: 4px 10px; letter-spacing: .02em; }
+@media (max-width: 600px) { .dial { width: 96px; height: 96px; } .dial svg { width: 96px; height: 96px; } .dial-num .big-num { font-size: 28px; } }
+
+/* one-line reasons with points */
+.why .why-item { grid-template-columns: 22px minmax(0, 1fr) auto; align-items: center; }
+.why-line { display: block; }
+.why-full { display: none; margin-top: 3px; font-size: 14px; color: var(--muted); }
+.why.open .why-full { display: block; }
+.why.open .why-item { align-items: start; }
+.why-pts { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; }
+.why-bar { width: 54px; height: 6px; border-radius: 3px; background: var(--border-soft); overflow: hidden; display: inline-block; }
+.why-bar i { display: block; height: 100%; background: var(--brand); }
+.why-bar.mixed i { background: #E0A040; }
+.why-bar.bad i { background: var(--accent); }
+.why-foot { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; }
+.linkbtn { border: 0; background: none; padding: 0; min-height: 44px; color: var(--link); font-weight: 700; text-decoration: underline; cursor: pointer; }
+@media (max-width: 600px) { .why-bar { width: 36px; } }
+
+/* sticky peak bar */
+.peakbar { position: fixed; top: 0; left: 0; right: 0; z-index: 40; background: var(--header); color: #FFFFFF; box-shadow: 0 2px 10px rgba(0,0,0,.25); }
+.peakbar-in { display: flex; align-items: center; gap: 12px 20px; min-height: 52px; }
+.peakbar-name { font-family: var(--display); font-weight: 700; font-size: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.peakbar-days { display: flex; gap: 4px; flex: 1 1 auto; overflow-x: auto; scrollbar-width: none; }
+.peakbar-days button { min-height: 40px; min-width: 64px; border: 1px solid rgba(255,255,255,.25); background: transparent; color: #FFFFFF; border-radius: 4px; display: inline-flex; align-items: center; gap: 6px; padding: 0 8px; font-size: 13px; cursor: pointer; white-space: nowrap; }
+.peakbar-days button[aria-pressed="true"] { background: rgba(255,255,255,.16); border-color: #F6B678; }
+.peakbar-days b { border-radius: 3px; padding: 1px 5px; font-size: 12px; }
+.peakbar-score { white-space: nowrap; }
+@media (max-width: 700px) { .peakbar-score { display: none; } .peakbar-name { font-size: 17px; max-width: 34vw; } .peakbar-days button { min-width: 0; } .peakbar-days button span { display: none; } }
+
+/* profile: chart beside its facts */
+.profile-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 20px 32px; align-items: start; }
+@media (max-width: 860px) { .profile-grid { grid-template-columns: 1fr; } }
+
+/* fold-away explanations */
+details.howto { border-top: 1px solid var(--border-soft); padding-top: 8px; }
+details.howto > summary { cursor: pointer; font-weight: 700; color: var(--link); min-height: 44px; display: flex; align-items: center; gap: 8px; list-style: none; }
+details.howto > summary::-webkit-details-marker { display: none; }
+details.howto > summary::before { content: "+"; display: inline-flex; width: 20px; height: 20px; align-items: center; justify-content: center; border: 1.5px solid currentColor; border-radius: 50%; font-size: 14px; line-height: 1; }
+details.howto[open] > summary::before { content: "−"; }
+details.howto > :not(summary) { margin-top: 8px; }
+
+/* Homepage best bet */
+.bestbet { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 24px; align-items: center; border-left: 4px solid var(--brand); }
+.bb-main { display: flex; gap: 22px; align-items: center; min-width: 0; }
+.bestbet h2 { font-size: 30px; line-height: 1.1; }
+.bestbet h2 a { color: inherit; text-decoration: none; }
+.bestbet h2 a:hover { text-decoration: underline; }
+.bestbet .btn { align-self: flex-start; margin-top: 4px; }
+.bb-more { border-left: 1px solid var(--border-soft); padding-left: 24px; display: flex; flex-direction: column; gap: 10px; }
+.bb-runners { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.bb-runners a { display: flex; gap: 12px; align-items: center; padding: 6px 8px; border-radius: 10px; color: inherit; text-decoration: none; }
+.bb-runners a:hover { background: var(--surface-2); }
+.bb-runners .badge { min-width: 48px; }
+@media (max-width: 760px) {
+  .bestbet { grid-template-columns: 1fr; }
+  .bb-more { border-left: 0; border-top: 1px solid var(--border-soft); padding: 16px 0 0; }
+  .bb-main { align-items: flex-start; gap: 16px; }
+  .bestbet h2 { font-size: 24px; }
+}
+@media (max-width: 600px) { .bestbet .dial, .bestbet .dial svg { width: 80px; height: 80px; } .bestbet .dial-num .big-num { font-size: 24px; } }

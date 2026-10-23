@@ -30,7 +30,7 @@
     return best;
   }
 
-  function render() { renderHeat(); renderMap(); renderList(); renderSaved(); }
+  function render() { renderBest(); renderHeat(); renderMap(); renderList(); renderSaved(); }
 
   function renderHeat() {
     var ds = days();
@@ -107,6 +107,50 @@
     document.getElementById('list-title').textContent = 'Best peaks in ' + area.name;
     document.getElementById('list-note').innerHTML = 'Chance of standing above a cloud sea at dawn. <a href="' + area.mwis + '">Read the MWIS ' + IW.esc(area.short) + ' forecast</a>.';
     document.getElementById('peak-list').innerHTML = ps.map(function (p) { return peakRow(p, state.day); }).join('');
+  }
+
+  /* The best peak and day this week, preferring the three MWIS days. */
+  function renderBest() {
+    if (renderBest.done) return;
+    var picks = [];
+    data.peaks.forEach(function (p) {
+      p.days.forEach(function (d, i) { picks.push({p: p, d: d, i: i, rank: d.score + (i < 3 ? 15 : 0) - i}); });
+    });
+    picks.sort(function (a, b) { return b.rank - a.rank; });
+    var top = picks[0], el = document.getElementById('bestbet');
+    if (!top || top.d.score < 40) { el.hidden = true; return; }
+    renderBest.done = true;
+    var href = 'peak.html?id=' + top.p.id + '&day=' + top.i;
+    var area = data.areas.filter(function (a) { return a.id === top.p.area; })[0] || {name: ''};
+    var arc = document.getElementById('bb-arc'), C = 2 * Math.PI * 52;
+    arc.style.strokeDasharray = C.toFixed(1);
+    arc.style.strokeDashoffset = (C * (1 - top.d.score / 100)).toFixed(1);
+    var dial = document.getElementById('bb-dial');
+    dial.className = 'dial ' + IW.pill(top.d.score).replace('pill-', 'dial-');
+    dial.href = href;
+    document.getElementById('bb-score').textContent = top.d.score + '%';
+    document.getElementById('bb-eyebrow').textContent = 'Best bet this week · ' + IW.dayLong(top.d.date);
+    var link = document.getElementById('bb-link');
+    link.textContent = top.p.name; link.href = href;
+    document.getElementById('bb-go').href = href;
+    var win = top.d.window ? ' · best ' + top.d.window[0] + '–' + top.d.window[1] : '';
+    document.getElementById('bb-meta').textContent = area.name + ' · ' + top.p.elev + ' m · sunrise ' + top.d.sunrise + win;
+    document.getElementById('bb-why').textContent = top.d.why ? top.d.why + '.' : '';
+    /* Runners-up: the next best, one per peak and a different area where possible. */
+    var seen = {}, areas = {}, runners = [];
+    seen[top.p.id] = 1; areas[top.p.area] = 1;
+    [true, false].forEach(function (newArea) {
+      picks.forEach(function (x) {
+        if (runners.length >= 3 || seen[x.p.id] || x.d.score < 40 || (newArea && areas[x.p.area])) return;
+        seen[x.p.id] = 1; areas[x.p.area] = 1; runners.push(x);
+      });
+    });
+    document.getElementById('bb-more-wrap').hidden = !runners.length;
+    document.getElementById('bb-runners').innerHTML = runners.map(function (x) {
+      return '<li><a href="peak.html?id=' + x.p.id + '&day=' + x.i + '"><span class="badge ' + IW.heat(x.d.score) + '">' + x.d.score + '%</span>' +
+        '<span class="stack" style="--gap: 0; min-width: 0"><b>' + IW.esc(x.p.name) + '</b><span class="muted small">' + IW.dayShort(x.d.date) + ' · ' + IW.esc((data.areas.filter(function (a) { return a.id === x.p.area; })[0] || {}).short || '') + '</span></span></a></li>';
+    }).join('');
+    el.hidden = false;
   }
 
   function renderSaved() {

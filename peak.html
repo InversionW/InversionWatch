@@ -33,15 +33,27 @@
 </div>
 </div>
 
+<div class="peakbar" id="peakbar" hidden aria-label="Current peak and day">
+<div class="wrap peakbar-in">
+<span class="peakbar-name" id="pb-name"></span>
+<div class="peakbar-days" role="group" aria-label="Choose a day" id="pb-days"></div>
+<span class="peakbar-score" id="pb-score"></span>
+</div>
+</div>
+
 <main id="main" class="wrap stack" style="--gap: 24px; padding-top: 24px">
-<section class="card stack" style="--gap: 18px" aria-label="Summary">
+<section class="card stack" style="--gap: 18px" aria-label="Summary" id="summary">
 <div class="chips" role="group" aria-label="Choose a day" id="day-chips"></div>
 <div id="stale" class="alert" role="alert" hidden></div>
-<div class="row" style="--gap: 16px 32px">
+<div class="row summary-row" style="--gap: 16px 32px">
+<div class="dial" id="dial">
+<svg viewBox="0 0 120 120" width="120" height="120" aria-hidden="true"><circle cx="60" cy="60" r="52" class="dial-track"/><circle cx="60" cy="60" r="52" class="dial-arc" id="dial-arc" transform="rotate(-90 60 60)"/></svg>
+<span class="dial-num"><span class="big-num" id="score"></span></span>
+</div>
+<div class="stack" style="--gap: 4px; flex: 1 1 300px; min-width: 0">
 <span class="verdict-pill" id="pill"></span>
-<div class="stack" style="--gap: 2px; flex: 1 1 320px; min-width: 0">
-<span><span class="big-num" id="score"></span> <span class="muted" style="font-weight: 600" id="score-day"></span></span>
-<p style="font-size: 18px; font-weight: 600" id="verdict"></p>
+<p style="font-size: 18px; font-weight: 600; margin: 4px 0 0" id="verdict"></p>
+<span class="muted small" id="score-day"></span>
 </div>
 <dl class="facts">
 <div><dt>Est. leave by</dt><dd id="sum-leave"></dd></div>
@@ -53,6 +65,11 @@
 <div class="stack" style="--gap: 8px"><h3 class="why-h">What's helping</h3><ul id="why-good"></ul></div>
 <div class="stack" style="--gap: 8px"><h3 class="why-h">What's holding it back</h3><ul id="why-held"></ul></div>
 <p class="why-need" id="why-need"></p>
+<div class="why-foot">
+<button type="button" class="linkbtn" id="why-more" aria-expanded="false">Read the full reasons</button>
+<span class="muted small">Points show how each signal adds to the score. <a href="about.html#how">How the score works</a>.</span>
+<span class="muted small" id="sources"></span>
+</div>
 </div>
 </section>
 
@@ -62,51 +79,6 @@
 </div>
 
 <div id="panel-forecast" role="tabpanel" aria-labelledby="tab-forecast" class="stack" style="--gap: 24px">
-<section class="card" style="padding: 0; overflow: hidden" aria-labelledby="table-h">
-<div class="row" style="justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border)">
-<h2 id="table-h">6-day dawn forecast</h2><span class="muted small" id="updated"></span>
-</div>
-<div class="daytable" id="daytable"></div>
-</section>
-
-<section class="grid-2">
-<figure class="card profile draws stack" style="margin: 0; --gap: 14px">
-<figcaption class="stack" style="--gap: 6px">
-<span class="eyebrow">Atmospheric profile</span>
-<span style="font-size: 18px; font-weight: 600" id="profile-head"></span>
-</figcaption>
-<div class="stack" style="--gap: 4px">
-<div class="row" style="justify-content: space-between"><label for="hour" style="font-weight: 700; font-size: 14px">Time of day <span class="muted" style="font-weight: 400" id="sunrise-note"></span></label><span style="font-family: var(--display); font-weight: 700; font-size: 26px" id="hour-out"></span></div>
-<input type="range" id="hour" min="0" max="0" step="1" value="0">
-</div>
-<div id="profile-svg"></div>
-<dl class="facts" style="padding: 12px 0; border-top: 1px solid var(--border-soft); border-bottom: 1px solid var(--border-soft); --gap: 10px 24px">
-<div><dt>Summit</dt><dd id="pf-st"></dd></div><div><dt>Valley</dt><dd id="pf-vt"></dd></div><div><dt>Cloud</dt><dd id="pf-cloud"></dd></div><div><dt>Freezing level</dt><dd id="pf-fz"></dd></div>
-</dl>
-<div class="stack" style="--gap: 10px">
-<span class="eyebrow">Key</span>
-<ul class="key">
-<li><svg width="28" height="14" aria-hidden="true"><line x1="0" y1="7" x2="28" y2="7" stroke="var(--accent)" stroke-width="3.5"/></svg><span><b>Temperature.</b> <span class="muted">Leaning left as it rises means cooling with height, as normal.</span></span></li>
-<li><svg width="28" height="14" aria-hidden="true"><line x1="0" y1="7" x2="28" y2="7" stroke="var(--dew)" stroke-width="2.5"/></svg><span><b>Dew point.</b> <span class="muted">Where it touches the temperature line the air is saturated, so there's cloud or fog.</span></span></li>
-<li><svg width="28" height="14" aria-hidden="true"><line x1="0" y1="7" x2="28" y2="7" stroke="var(--normal)" stroke-width="1.8" stroke-dasharray="7 5"/></svg><span><b>Normal cooling.</b> <span class="muted">About 6.5°C per 1,000 m, for comparison.</span></span></li>
-<li><i aria-hidden="true" style="width: 28px; height: 14px; margin-top: 3px; background: var(--accent); opacity: 0.18; display: block"></i><span><b>Inversion layer.</b> <span class="muted">The line leans right: it gets warmer as you climb, which traps cloud below.</span></span></li>
-<li><i aria-hidden="true" style="width: 28px; height: 14px; margin-top: 3px; background: var(--cloud); display: block"></i><span><b>Cloud.</b> <span class="muted">Below the summit line means you'd stand above it.</span></span></li>
-<li><svg width="28" height="14" aria-hidden="true"><line x1="0" y1="7" x2="28" y2="7" stroke="var(--freeze)" stroke-width="2" stroke-dasharray="2 4"/></svg><span><b>Freezing level.</b> <span class="muted">Where the air drops to 0°C. Ice and rime above it.</span></span></li>
-</ul>
-</div>
-</figure>
-
-<section class="card stack" style="--gap: 12px" aria-labelledby="why-h">
-<h2 id="why-h">How the score is worked out</h2>
-<p class="muted small">Six signals, each scored out of its weight. <a href="about.html#how">More about the method</a>.</p>
-<div id="factors"></div>
-<div class="stack" style="--gap: 8px; padding-top: 12px">
-<h3>Check these too</h3>
-<ul style="margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px" id="sources"></ul>
-</div>
-</section>
-</section>
-
 <figure class="card stack draws" id="skyline-card" style="margin: 0; --gap: 16px" hidden>
 <figcaption class="stack" style="--gap: 6px">
 <span class="eyebrow">View from the summit <span id="sky-hour" style="font-weight: 600; text-transform: none; letter-spacing: 0"></span></span>
@@ -141,6 +113,8 @@
 <p class="muted small photo-credit" id="photo-credit"></p>
 </div>
 <div class="pano" id="pano" tabindex="0" aria-label="Sun path from the summit. Scroll sideways to look around."></div>
+<details class="howto">
+<summary>How to read this view</summary>
 <ul class="key">
 <li><svg width="28" height="14" aria-hidden="true"><circle cx="14" cy="7" r="6" fill="var(--accent)"/></svg><span><b>The sun.</b> <span class="muted">Where it is at the time on the slider. The dotted line is its path through the day, from first to last sun on the summit, at its true height.</span></span></li>
 <li><svg width="28" height="14" aria-hidden="true"><line x1="14" y1="1" x2="14" y2="13" stroke="var(--text)" stroke-width="2"/></svg><span><b>Hill names.</b> <span class="muted">Named tops on the skyline, placed at their real direction and height.</span></span></li>
@@ -148,6 +122,41 @@
 <li id="key-eye"><svg width="28" height="14" aria-hidden="true"><line x1="0" y1="7" x2="28" y2="7" stroke="var(--muted)" stroke-dasharray="3 3" stroke-width="2"/></svg><span><b>Eye level.</b> <span class="muted">Anything below this line is lower than you.</span></span></li>
 </ul>
 <p class="muted small" style="margin: 0" id="sky-source">First sun, the view and the higher hills are worked out from the Copernicus DEM (about 90 m detail), with hill names from OpenStreetMap. Small tops and crags close to the summit may be missed.</p>
+</details>
+</figure>
+
+<section class="card" style="padding: 0; overflow: hidden" aria-labelledby="table-h">
+<div class="row" style="justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border)">
+<h2 id="table-h">6-day dawn forecast</h2><span class="muted small" id="updated"></span>
+</div>
+<div class="daytable" id="daytable"></div>
+</section>
+
+<figure class="card profile draws stack" style="margin: 0; --gap: 14px">
+<figcaption class="stack" style="--gap: 6px">
+<span class="eyebrow">Atmospheric profile <span style="font-weight: 600; text-transform: none; letter-spacing: 0" id="hour-out"></span></span>
+<span style="font-size: 18px; font-weight: 600" id="profile-head"></span>
+<span class="muted small" id="sunrise-note"></span>
+</figcaption>
+<div class="profile-grid">
+<div id="profile-svg"></div>
+<div class="stack" style="--gap: 14px">
+<dl class="facts" style="--gap: 10px 24px">
+<div><dt>Summit</dt><dd id="pf-st"></dd></div><div><dt>Valley</dt><dd id="pf-vt"></dd></div><div><dt>Cloud</dt><dd id="pf-cloud"></dd></div><div><dt>Freezing level</dt><dd id="pf-fz"></dd></div>
+</dl>
+<details class="howto">
+<summary>How to read this chart</summary>
+<ul class="key">
+<li><svg width="28" height="14" aria-hidden="true"><line x1="0" y1="7" x2="28" y2="7" stroke="var(--accent)" stroke-width="3.5"/></svg><span><b>Temperature.</b> <span class="muted">Leaning left as it rises means cooling with height, as normal.</span></span></li>
+<li><svg width="28" height="14" aria-hidden="true"><line x1="0" y1="7" x2="28" y2="7" stroke="var(--dew)" stroke-width="2.5"/></svg><span><b>Dew point.</b> <span class="muted">Where it touches the temperature line the air is saturated, so there's cloud or fog.</span></span></li>
+<li><svg width="28" height="14" aria-hidden="true"><line x1="0" y1="7" x2="28" y2="7" stroke="var(--normal)" stroke-width="1.8" stroke-dasharray="7 5"/></svg><span><b>Normal cooling.</b> <span class="muted">About 6.5°C per 1,000 m, for comparison.</span></span></li>
+<li><i aria-hidden="true" style="width: 28px; height: 14px; margin-top: 3px; background: var(--accent); opacity: 0.18; display: block"></i><span><b>Inversion layer.</b> <span class="muted">The line leans right: it gets warmer as you climb, which traps cloud below.</span></span></li>
+<li><i aria-hidden="true" style="width: 28px; height: 14px; margin-top: 3px; background: var(--cloud); display: block"></i><span><b>Cloud.</b> <span class="muted">Below the summit line means you'd stand above it.</span></span></li>
+<li><svg width="28" height="14" aria-hidden="true"><line x1="0" y1="7" x2="28" y2="7" stroke="var(--freeze)" stroke-width="2" stroke-dasharray="2 4"/></svg><span><b>Freezing level.</b> <span class="muted">Where the air drops to 0°C. Ice and rime above it.</span></span></li>
+</ul>
+</details>
+</div>
+</div>
 </figure>
 </div>
 

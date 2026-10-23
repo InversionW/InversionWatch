@@ -356,8 +356,8 @@ def explain(c, peak, f, score):
         miss = next((i for i in held if i["key"] == "diff"), held[0]) if c["inv"] < MIN_INVERSION else held[0]
         short = miss["short"].capitalize()
     return {
-        "good": [i["text"] for i in good],
-        "held": [{"text": i["text"], "state": i["state"]} for i in held],
+        "good": [{"key": i["key"], "short": i["short"], "text": i["text"], "state": "good"} for i in good],
+        "held": [{"key": i["key"], "short": i["short"], "text": i["text"], "state": i["state"]} for i in held],
         "need": need,
         "short": short,
     }

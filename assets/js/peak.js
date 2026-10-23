@@ -27,7 +27,7 @@
   IW.load('data/terrain/' + id + '.json').then(function (t) {
     if (!t || !t.h || t.h.length !== 360) return;
     terrain = t;
-    if (detail) { renderSkyline(); renderPlan(); renderCompass(); if (IW.motion) try { IW.motion.refresh(); } catch (e) {} }
+    if (detail) { renderSkyline(); renderProfile(); renderPlan(); renderCompass(); if (IW.motion) try { IW.motion.refresh(); } catch (e) {} }
   }).catch(function () {});
 
   function day() { return detail.days[state.day]; }
@@ -72,8 +72,9 @@
     ['forecast', 'plan'].forEach(function (t) {
       document.getElementById('tab-' + t).addEventListener('click', function () { state.tab = t; paintTabs(); });
     });
-    document.getElementById('hour').addEventListener('input', function (e) { state.hour = +e.target.value; renderProfile(); });
-    document.getElementById('sky-range').addEventListener('input', function (e) { state.sky = +e.target.value; renderSkyline(); });
+    
+    document.getElementById('sky-range').addEventListener('input', function (e) { state.sky = +e.target.value; renderSkyline(); renderProfile(); });
+    document.getElementById('why-more').addEventListener('click', function () { state.whyOpen = !state.whyOpen; renderWhy(day()); });
     ['S', 'N'].forEach(function (f) {
       document.getElementById('face-' + f).addEventListener('click', function () {
         state.face = f; IW.set('face', f);
@@ -137,7 +138,12 @@
     pill.className = 'verdict-pill ' + IW.pill(d.score);
     pill.textContent = IW.label(d.score);
     document.getElementById('score').textContent = d.score + '%';
-    document.getElementById('score-day').textContent = 'chance on ' + IW.dayLong(d.date) + ' · ' + d.conf.toLowerCase() + ' confidence';
+    var arc = document.getElementById('dial-arc'), C = 2 * Math.PI * 52;
+    arc.style.strokeDasharray = C.toFixed(1);
+    arc.style.strokeDashoffset = (C * (1 - Math.max(0, Math.min(100, d.score)) / 100)).toFixed(1);
+    document.getElementById('dial').className = 'dial ' + IW.pill(d.score).replace('pill-', 'dial-');
+    document.getElementById('score-day').textContent = 'Chance of a cloud sea at dawn on ' + IW.dayLong(d.date) + ' · ' + d.conf.toLowerCase() + ' confidence';
+    renderPeakbar();
     document.getElementById('verdict').textContent = d.verdict;
     renderWhy(d);
     document.getElementById('sum-leave').textContent = leaveBy(d) || '–';
@@ -150,16 +156,57 @@
     mixed: '<svg width="22" height="22" viewBox="0 0 24 24" aria-label="Mixed"><circle cx="12" cy="12" r="10" fill="none" stroke="#E0701F" stroke-width="2"/><path d="M12 2a10 10 0 0 1 0 20z" fill="#E0701F"/></svg>',
     bad: '<svg width="22" height="22" viewBox="0 0 24 24" aria-label="Against"><circle cx="12" cy="12" r="11" fill="var(--accent)"/><path d="M8.5 8.5l7 7M15.5 8.5l-7 7" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round"/></svg>'
   };
+  // One line per signal: what it is, the key number, and the points it adds to the score.
+  var WEIGHT = {diff: 30, moist: 20, wind: 15, pressure: 15, below: 10, clear: 10};
+  function whyValue(k, d) {
+    if (k === 'diff') { var inv = d.inv != null ? d.inv : Math.max(0, d.st - d.vt); return inv >= 0.5 ? '+' + inv.toFixed(1) + '°C' + (d.inv_top ? ' at ' + d.inv_top + ' m' : '') : 'cools with height'; }
+    if (k === 'moist') return d.rh_valley + '% humidity';
+    if (k === 'wind') return d.wind + ' mph on top';
+    if (k === 'pressure') return d.pressure + ' hPa';
+    if (k === 'below') return d.cloud ? 'top ~' + d.cloud[1] + ' m' + (d.cloud[1] < peak.elev ? ', ' + (peak.elev - d.cloud[1]) + ' m below you' : '') : 'none forecast';
+    if (k === 'clear') return d.high_cloud + '% high cloud';
+    return '';
+  }
   function renderWhy(d) {
     var box = document.getElementById('why');
     if (!d.why) { box.hidden = true; return; }
     box.hidden = false;
-    var li = function (text, state) { return '<li>' + ICON[state] + '<span>' + IW.esc(text) + '</span></li>'; };
+    var keyed = d.why.good.length && typeof d.why.good[0] === 'object' || d.why.held.length && d.why.held[0].key;
+    var li = function (it, st) {
+      if (!keyed) return '<li>' + ICON[st] + '<span>' + IW.esc(typeof it === 'string' ? it : it.text) + '</span></li>';
+      var f = d.factors ? d.factors[it.key] || 0 : 0, w = WEIGHT[it.key] || 10, short = it.short.charAt(0).toUpperCase() + it.short.slice(1);
+      return '<li class="why-item">' + ICON[st] + '<span class="why-line"><b>' + IW.esc(short) + '</b> <span class="muted">· ' + IW.esc(whyValue(it.key, d)) + '</span>' +
+        '<span class="why-full">' + IW.esc(it.text) + '</span></span>' +
+        '<span class="why-pts" title="Points towards the score"><span class="why-bar ' + st + '"><i style="width:' + Math.round(f * 100) + '%"></i></span>' + Math.round(f * w) + '/' + w + '</span></li>';
+    };
     document.getElementById('why-good').innerHTML = d.why.good.length ? d.why.good.map(function (t) { return li(t, 'good'); }).join('') : '<li class="none">Nothing much on this morning.</li>';
-    document.getElementById('why-held').innerHTML = d.why.held.length ? d.why.held.map(function (h) { return li(h.text, h.state); }).join('') : '<li class="none">Nothing: every signal is in its favour.</li>';
+    document.getElementById('why-held').innerHTML = d.why.held.length ? d.why.held.map(function (h) { return li(h, h.state); }).join('') : '<li class="none">Nothing: every signal is in its favour.</li>';
     var need = d.why.need || '', i = need.indexOf(': ');
     document.getElementById('why-need').innerHTML = i > 0 ? '<b>' + IW.esc(need.slice(0, i)) + ':</b> <span style="font-weight: 400">' + IW.esc(need.slice(i + 2)) + (state.day >= 3 ? ' This day is four or more days out, so treat it as a heads-up.' : '') + '</span>' : IW.esc(need);
+    var more = document.getElementById('why-more');
+    more.hidden = !keyed;
+    more.setAttribute('aria-expanded', state.whyOpen ? 'true' : 'false');
+    more.textContent = state.whyOpen ? 'Show the short version' : 'Read the full reasons';
+    box.classList.toggle('open', !!state.whyOpen);
   }
+
+  // 6. A slim bar that stays at the top: the peak, the day and its score.
+  function renderPeakbar() {
+    if (!detail) return;
+    document.getElementById('pb-name').textContent = peak.name;
+    var d = day();
+    document.getElementById('pb-score').innerHTML = '<span class="verdict-pill small ' + IW.pill(d.score) + '">' + d.score + '% · ' + IW.label(d.score) + '</span>';
+    var box = document.getElementById('pb-days');
+    box.innerHTML = detail.days.map(function (x, i) {
+      return '<button type="button" data-i="' + i + '" aria-pressed="' + (i === state.day) + '"><span>' + IW.dayShort(x.date) + '</span><b class="' + IW.heat(x.score) + '">' + x.score + '</b></button>';
+    }).join('');
+    box.querySelectorAll('button').forEach(function (b) { b.addEventListener('click', function () { state.day = +b.dataset.i; state.hour = null; state.sky = null; render(); }); });
+  }
+  (function watchSummary() {
+    var bar = document.getElementById('peakbar'), sum = document.getElementById('summary');
+    if (!('IntersectionObserver' in window) || !sum) return;
+    new IntersectionObserver(function (es) { bar.hidden = es[0].isIntersecting || !detail; }, {rootMargin: '-60px 0px 0px 0px'}).observe(sum);
+  })();
 
   function renderTable() {
     var ds = detail.days;
@@ -216,40 +263,26 @@
 
 
   function renderFactors() {
-    var d = day();
-    var F = [
-      ['diff', 'Warm layer above the valley', 30, d.inv == null ? 'Summit ' + IW.temp(d.st) + ', valley ' + IW.temp(d.vt) : d.inv >= 0.5 ? 'Up to ' + d.inv.toFixed(1) + '°C warmer than the valley' + (d.inv_top ? ', around ' + d.inv_top + ' m' : '') : 'None: the air cools with height, so the score is capped at 20%'],
-      ['moist', 'Moist valley air', 20, d.rh_valley + '% humidity in the valley'],
-      ['wind', 'Light winds', 15, d.wind + ' mph at summit height'],
-      ['pressure', 'High pressure', 15, d.pressure + ' hPa'],
-      ['below', 'Cloud top below summit', 10, d.cloud ? 'Cloud top around ' + d.cloud[1] + ' m' : 'No cloud layer expected'],
-      ['clear', 'Clear sky above', 10, d.high_cloud + '% high cloud']
-    ];
-    document.getElementById('factors').innerHTML = F.map(function (f) {
-      var v = d.factors[f[0]] || 0;
-      return '<div class="factor"><b>' + f[1] + '</b><b>' + Math.round(v * f[2]) + ' / ' + f[2] + '</b><span class="muted small" style="grid-column: 1 / -1">' + f[3] + '</span><span class="bar"><i style="width:' + Math.round(v * 100) + '%"></i></span></div>';
-    }).join('');
-    document.getElementById('sources').innerHTML =
-      '<li><a href="' + area.mwis + '">MWIS ' + IW.esc(area.short) + ' forecast</a> <span class="muted small">(days 1–3)</span></li>' +
-      '<li><a href="https://www.metoffice.gov.uk/weather/specialist-forecasts/mountain">Met Office mountain forecasts</a></li>' +
-      '<li><a href="https://www.mountain-forecast.com/">Mountain-Forecast</a> <span class="muted small">for comparison</span></li>';
+    document.getElementById('sources').innerHTML = 'Check these too: <a href="' + area.mwis + '">MWIS ' + IW.esc(area.short) + '</a> (days 1–3) · ' +
+      '<a href="https://www.metoffice.gov.uk/weather/specialist-forecasts/mountain">Met Office mountain</a> · <a href="https://www.mountain-forecast.com/">Mountain-Forecast</a>';
   }
 
   /* ---------- atmospheric profile */
   function renderProfile() {
     var d = day(), hours = (d.hours || []).filter(function (h) { return +h.t.slice(0, 2) <= 12; });
     if (!hours.length) { document.getElementById('profile-svg').innerHTML = '<p class="muted">No profile available.</p>'; return; }
-    var slider = document.getElementById('hour');
-    slider.max = hours.length - 1;
-    if (state.hour === null) {
-      var sr = +d.sunrise.slice(0, 2); state.hour = 0;
-      hours.forEach(function (h, i) { if (+h.t.slice(0, 2) <= sr) state.hour = i; });
+    // Follow the page's time slider; before it is ready, show the hour of sunrise.
+    var want = +d.sunrise.slice(0, 2), sd = terrain ? skyDay(d) : null, later = false;
+    if (sd && sd.path.length) {
+      var q = sd.path[state.sky == null ? sd.start : state.sky] || sd.path[0];
+      want = localHour(q.t + 30 * 60000);
+      later = want > +hours[hours.length - 1].t.slice(0, 2);
     }
-    slider.value = state.hour;
+    state.hour = 0;
+    hours.forEach(function (hh, i) { if (+hh.t.slice(0, 2) <= want) state.hour = i; });
     var h = hours[state.hour];
-    slider.setAttribute('aria-valuetext', h.t);
-    document.getElementById('hour-out').textContent = h.t;
-    document.getElementById('sunrise-note').textContent = '· sunrise ' + d.sunrise;
+    document.getElementById('hour-out').textContent = '· ' + h.t;
+    document.getElementById('sunrise-note').textContent = later ? 'The profile covers the morning only; this is the last one, at ' + h.t + '.' : 'Follows the time slider above. Sunrise ' + d.sunrise + '.';
 
     var topZ = Math.max(1500, Math.ceil((peak.elev + 600) / 500) * 500);
     var lv = h.levels.filter(function (l) { return l[0] <= topZ + 300; });
@@ -402,14 +435,17 @@
   var skyCache = {};
   function skyDay(d) {
     if (skyCache[d.date]) return skyCache[d.date];
-    var fl = firstLight(d), path = [], end = lastLight(d.date);
+    var fl = firstLight(d), path = [], end = lastLight(d.date), start = 0;
     if (fl && end) {
       var add = function (t) { var sp = sunAt(t, terrain.lat, terrain.lon); path.push({t: t, az: sp.az, alt: sp.alt}); };
+      var p3 = d.date.split('-'), u3 = Date.UTC(+p3[0], +p3[1] - 1, +p3[2], 3, 0), t3 = u3 - (localHour(u3) - 3) * 3600000; // 03:00 UK time
+      for (var t0 = t3; t0 < fl.t; t0 += 600000) add(t0);
+      start = path.length;
       add(fl.t);
       for (var t = Math.ceil((fl.t + 1) / 600000) * 600000; t < end; t += 600000) add(t);
     }
     if (path.length && path[path.length - 1].t < end) { var se = sunAt(end, terrain.lat, terrain.lon); path.push({t: end, az: se.az, alt: se.alt}); }
-    return (skyCache[d.date] = {fl: fl, ll: end, path: path});
+    return (skyCache[d.date] = {fl: fl, ll: end, path: path, start: start});
   }
 
   /* ---------- the forecast cloud sea, as angles: for each 2° of compass, the top (far edge) and bottom (near edge) */
@@ -480,6 +516,24 @@
     js.async = true; js.onerror = function () { gsv.state = 'none'; startMapillary(); };
     document.head.appendChild(js);
   })();
+
+  // Street View is the default: it opens by itself once the card scrolls into view, so visitors who
+  // never get that far don't use up any of Google's free monthly allowance.
+  function autoOpenGoogle() {
+    if (gsv.watching) return;
+    gsv.watching = true;
+    // Only load once the viewer area itself is properly on screen and stays there for a
+    // moment, so a quick glance at the score or a fast scroll past doesn't use a load.
+    var spot = document.getElementById('gsv');
+    if (!('IntersectionObserver' in window)) return; // old browsers keep the "Open" button
+    var timer = null;
+    var io = new IntersectionObserver(function (es) {
+      var seen = es.some(function (e) { return e.isIntersecting; });
+      if (seen && !timer) timer = setTimeout(function () { io.disconnect(); openGoogle(); }, 1200);
+      if (!seen && timer) { clearTimeout(timer); timer = null; }
+    }, {rootMargin: '0px 0px -30% 0px'});
+    io.observe(spot);
+  }
 
   // Open the Street View (this is the only step that counts towards Google's monthly allowance).
   function openGoogle() {
@@ -637,7 +691,7 @@
     card.hidden = false;
     var d = day(), sd = skyDay(d), path = sd.path, fl = sd.fl;
     if (!path.length) { card.hidden = true; return; }
-    if (state.sky == null || state.sky >= path.length) state.sky = 0;
+    if (state.sky == null || state.sky >= path.length) state.sky = sd.start;
     var now = path[state.sky], afternoon = localHour(now.t + 30 * 60000) > 12, h = afternoon ? null : hourFor(d, now.t);
     var cloud = afternoon ? null : h ? h.cloud : d.cloud, ct = cloud ? cloud[1] : null;
     var showCloud = ct && ct < peak.elev - 20;
@@ -652,10 +706,11 @@
     range.setAttribute('aria-valuetext', hhmm(now.t));
     document.getElementById('sky-time').textContent = hhmm(now.t);
     document.getElementById('sky-hour').textContent = '· ' + IW.dayLong(d.date);
-    document.getElementById('sky-range-ends').textContent = 'first sun ' + hhmm(path[0].t) + ' to last sun ' + hhmm(path[path.length - 1].t);
+    document.getElementById('sky-range-ends').textContent = hhmm(path[0].t) + ' to last sun ' + hhmm(path[path.length - 1].t) + ' · moves the view and the profile below';
     var k = Math.round(now.az) % 360, who = terrain.who[k] >= 0 ? terrain.hills[terrain.who[k]] : null;
     var where = dir16(now.az), upTxt;
-    if (hidden && skyAt(now.az) >= sea) upTxt = 'The sun is behind ' + (who ? who.name : 'the hills') + ' to the ' + where + ', so the summit is in shade.';
+    if (state.sky < sd.start) upTxt = 'Before first sun on the summit, at ' + hhmm(path[sd.start].t) + '. ' + (now.alt < -6 ? 'Still dark: headtorch time.' : 'Twilight: light enough to see the cloud below.');
+    else if (hidden && skyAt(now.az) >= sea) upTxt = 'The sun is behind ' + (who ? who.name : 'the hills') + ' to the ' + where + ', so the summit is in shade.';
     else if (hidden) upTxt = 'The sun is still below the cloud sea to the ' + where + '.';
     else upTxt = (now.alt < 1 ? 'The sun is just rising in the ' + where : 'The sun is ' + Math.round(now.alt) + '° up in the ' + where) + (showCloud && now.alt < 12 ? ', low enough to light the cloud sea gold.' : showCloud ? ', shining on the cloud sea.' : '.');
     document.getElementById('sky-now').textContent = upTxt;
@@ -666,6 +721,7 @@
     document.getElementById('face-sun').hidden = !usePhoto && !useGoogle;
     document.getElementById('key-eye').hidden = usePhoto || useGoogle;
     document.getElementById('gsv').hidden = !useGoogle && !canGoogle;
+    if (canGoogle) autoOpenGoogle();
 
     // facts
     document.getElementById('sky-sun').textContent = fl ? hhmm(fl.t) : '–';
@@ -698,13 +754,13 @@
     if (useGoogle) {
       document.getElementById('pano').hidden = true;
       document.getElementById('photo360').hidden = true;
-      placeOnGoogle(path, now, hidden, showCloud ? cloudBand(ct) : null);
+      placeOnGoogle(path.slice(sd.start), now, hidden, showCloud ? cloudBand(ct) : null);
       return;
     }
     if (usePhoto) {
       document.getElementById('pano').hidden = true;
       document.getElementById('photo360').hidden = false;
-      placeOnPhoto(path, now, hidden);
+      placeOnPhoto(path.slice(sd.start), now, hidden);
       return;
     }
     document.getElementById('photo360').hidden = photo.state !== 'loading';
@@ -753,7 +809,7 @@
     });
     // the sun's path (dotted) and the sun now
     var segs = [[]], prev = null;
-    path.forEach(function (q) {
+    path.slice(sd.start).forEach(function (q) {
       var px = X(q.az);
       if (prev !== null && Math.abs(px - prev) > W / 2) segs.push([]);
       segs[segs.length - 1].push(px.toFixed(1) + ',' + Y(q.alt + refract(q.alt)).toFixed(1));
@@ -762,7 +818,7 @@
     segs.forEach(function (sg) { if (sg.length > 1) sv += '<polyline points="' + sg.join(' ') + '" fill="none" stroke="' + acc + '" stroke-width="2.2" stroke-dasharray="1 6" stroke-linecap="round"/>'; });
     path.forEach(function (q, i) {
       var c = new Date(q.t).toLocaleTimeString('en-GB', {hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London'});
-      if (!i || c.slice(3) !== '00' || +c.slice(0, 2) % 2 || Math.abs(X(q.az) - X(now.az)) < 60) return;
+      if (i <= sd.start || c.slice(3) !== '00' || +c.slice(0, 2) % 2 || Math.abs(X(q.az) - X(now.az)) < 60) return;
       sv += '<text x="' + X(q.az).toFixed(1) + '" y="' + (Y(q.alt) - 8).toFixed(1) + '" text-anchor="middle" font-size="11" fill="' + mut + '">' + c + '</text>';
     });
     var sx = X(now.az), sy = Y(now.alt + refract(now.alt)), left = sx > W - 120;
